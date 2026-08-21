@@ -18,8 +18,6 @@
     {
       "binding": "DB",
       "database_name": "restaurant-db",
-      // مؤقت حتى يُنشأ الفعلي بـ: wrangler d1 create restaurant-db
-      // يبقى بصيغة UUID ليعمل `wrangler dev --local`، والنشر به يفشل بوضوح.
       "database_id": "14685e7f-b0fe-4803-808f-2e463d0394ea"
     }
   ],
