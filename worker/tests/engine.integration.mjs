@@ -232,6 +232,48 @@ await check('an unknown slug does not reveal whether it ever existed', async () 
   assert.ok(!page.includes('موقوف'), 'suspension leaked to a public page');
 });
 
+/**
+ * النسخة الحقيقية.
+ *
+ * أحد الأربعة المطلوبة لكل منتج، ونسيت اختباره أول مرة: كان كل الفحص على
+ * نسخة العرض. مطعم جديد يفتح موقعه فيجد صفحة معطوبة أسوأ من مطعم لا موقع له.
+ */
+await check('a clean production tenant still serves a complete page', async () => {
+  const other = await db.prepare('SELECT slug FROM restaurants WHERE control_tenant_id = ?')
+    .bind(TENANT_B).first();
+  const response = await call(`/r/${other.slug}/`);
+  assert.equal(response.status, 200, `production site returned ${response.status}`);
+  const page = await response.text();
+  assert.ok(page.includes('مطعم آخر'), 'the name is missing');
+  // العناوين الهيكلية مكتوبة في البذرة النظيفة: صفحة بعناوين فارغة يفتحها
+  // صاحبها فلا يعرف أين يكتب.
+  assert.ok(page.includes('قائمة الطعام'), 'structural headings are empty');
+  assert.ok(page.includes('اطلب الآن'), 'the call to action is empty');
+  assert.ok(!page.includes('undefined') && !page.includes('null'), 'a raw empty value leaked into the page');
+});
+
+await check('a clean production menu is empty but not broken', async () => {
+  const other = await db.prepare('SELECT slug FROM restaurants WHERE control_tenant_id = ?')
+    .bind(TENANT_B).first();
+  const response = await call(`/r/${other.slug}/menu`);
+  assert.equal(response.status, 200);
+  const page = await response.text();
+  assert.ok(page.includes('قائمة الطعام'), 'the menu page has no heading');
+});
+
+await check('a clean production tenant carries no demo rows', async () => {
+  const other = await db.prepare('SELECT restaurant_id FROM restaurants WHERE control_tenant_id = ?')
+    .bind(TENANT_B).first();
+  for (const tableName of ['offers', 'testimonials', 'faqs', 'orders', 'reservations', 'hero_stats']) {
+    const count = await db.prepare(`SELECT COUNT(*) AS count FROM ${tableName} WHERE restaurant_id = ?`)
+      .bind(other.restaurant_id).first();
+    assert.equal(Number(count.count), 0, `${tableName} carries demo rows into a real customer`);
+  }
+  const owner = await db.prepare("SELECT COUNT(*) AS count FROM users WHERE restaurant_id = ? AND role = 'owner'")
+    .bind(other.restaurant_id).first();
+  assert.equal(Number(owner.count), 1, 'a clean tenant should have exactly one owner');
+});
+
 /* ==================== 4. التسعير على الخادم ==================== */
 
 const menuIds = {};
