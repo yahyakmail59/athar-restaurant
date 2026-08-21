@@ -1,0 +1,14 @@
+{
+  "name": "athar-restaurant",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node worker/tests/receipt.test.mjs && node worker/tests/engine.integration.mjs",
+    "test:receipt": "node worker/tests/receipt.test.mjs",
+    "deploy": "wrangler deploy --config worker/wrangler.jsonc"
+  },
+  "dependencies": {
+    "@resvg/resvg-wasm": "^2.6.2"
+  }
+}

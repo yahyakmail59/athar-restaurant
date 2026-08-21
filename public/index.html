@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>لوحة المطعم — أثر</title>
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+
+<!-- ==================== الدخول ==================== -->
+<main id="login-view" class="login">
+  <form id="login-form" class="login-card" autocomplete="on">
+    <h1>لوحة المطعم</h1>
+    <p class="muted">ادخل بالبيانات التي أصدرتها لوحة أثر.</p>
+
+    <div class="field">
+      <label for="login-restaurant">معرّف المطعم</label>
+      <input id="login-restaurant" name="restaurant_id" required autocomplete="username"
+             placeholder="ATH_..." spellcheck="false">
+    </div>
+    <div class="field">
+      <label for="login-username">اسم المستخدم</label>
+      <input id="login-username" name="username" required autocomplete="username" spellcheck="false">
+    </div>
+    <div class="field">
+      <label for="login-password">كلمة المرور</label>
+      <input id="login-password" name="password" type="password" required autocomplete="current-password">
+    </div>
+
+    <button class="btn btn-brand" type="submit">دخول</button>
+    <p id="login-error" class="msg" role="alert"></p>
+  </form>
+</main>
+
+<!-- ==================== اللوحة ==================== -->
+<div id="app-view" hidden>
+  <header class="topbar">
+    <button id="nav-toggle" class="icon-btn" type="button" aria-label="القائمة" aria-expanded="false">☰</button>
+    <div class="topbar-title">
+      <strong id="restaurant-name">—</strong>
+      <span id="plan-badge" class="badge"></span>
+      <span id="env-badge" class="badge badge-demo" hidden>نسخة عرض</span>
+    </div>
+    <a id="public-link" class="btn btn-ghost small" href="#" target="_blank" rel="noopener">الموقع العام</a>
+    <button id="logout" class="btn btn-ghost small" type="button">خروج</button>
+  </header>
+
+  <div class="shell">
+    <nav id="sidenav" class="sidenav" aria-label="أقسام اللوحة">
+      <button class="nav-item is-active" type="button" data-panel="dashboard">لوحة التشغيل</button>
+      <button class="nav-item" type="button" data-panel="orders">الطلبات</button>
+      <button class="nav-item" type="button" data-panel="cashier">الكاشير</button>
+      <button class="nav-item" type="button" data-panel="reservations">الحجوزات</button>
+      <button class="nav-item" type="button" data-panel="menu">المنيو</button>
+      <button class="nav-item" type="button" data-panel="content">المحتوى</button>
+      <button class="nav-item" type="button" data-panel="identity">الهوية والموقع</button>
+      <button class="nav-item" type="button" data-panel="users">الحسابات</button>
+      <button class="nav-item" type="button" data-panel="account">حسابي</button>
+    </nav>
+
+    <main class="content">
+      <p id="toast" class="msg" role="status" hidden></p>
+
+      <!-- لوحة التشغيل -->
+      <section id="panel-dashboard" class="panel">
+        <h2>لوحة التشغيل</h2>
+        <div id="kpis" class="kpis"></div>
+        <h3>الأكثر مبيعًا هذا الأسبوع</h3>
+        <div id="top-items" class="table-wrap"></div>
+      </section>
+
+      <!-- الطلبات -->
+      <section id="panel-orders" class="panel" hidden>
+        <div class="panel-head">
+          <h2>الطلبات</h2>
+          <div class="chips" id="order-filters">
+            <button class="chip is-active" type="button" data-status="">الكل</button>
+            <button class="chip" type="button" data-status="new">جديد</button>
+            <button class="chip" type="button" data-status="confirmed">مؤكَّد</button>
+            <button class="chip" type="button" data-status="preparing">قيد التحضير</button>
+            <button class="chip" type="button" data-status="delivered">مُسلَّم</button>
+            <button class="chip" type="button" data-status="cancelled">ملغى</button>
+          </div>
+          <button id="orders-refresh" class="btn btn-ghost small" type="button">تحديث</button>
+        </div>
+        <div id="orders-list" class="cards"></div>
+      </section>
+
+      <!-- الكاشير -->
+      <section id="panel-cashier" class="panel" hidden>
+        <h2>الكاشير</h2>
+        <div class="cashier">
+          <div>
+            <div id="cashier-categories" class="chips"></div>
+            <div id="cashier-items" class="tile-grid"></div>
+          </div>
+          <aside class="ticket">
+            <h3>الطلب الحالي</h3>
+            <div id="ticket-lines" class="ticket-lines"><p class="muted">لم تُضف أصناف بعد.</p></div>
+            <p class="ticket-total"><span>الإجمالي</span><strong id="ticket-total">—</strong></p>
+            <div class="field">
+              <label for="cashier-table">الطاولة / الاسم</label>
+              <input id="cashier-table" placeholder="طاولة ٥">
+            </div>
+            <div class="field">
+              <label for="cashier-fulfillment">النوع</label>
+              <select id="cashier-fulfillment">
+                <option value="dine_in">في المطعم</option>
+                <option value="pickup">استلام</option>
+                <option value="delivery">توصيل</option>
+              </select>
+            </div>
+            <button id="cashier-submit" class="btn btn-brand" type="button" disabled>تسجيل الطلب</button>
+            <p id="cashier-result" class="msg" role="status"></p>
+          </aside>
+        </div>
+      </section>
+
+      <!-- الحجوزات -->
+      <section id="panel-reservations" class="panel" hidden>
+        <div class="panel-head">
+          <h2>الحجوزات</h2>
+          <button id="reservations-refresh" class="btn btn-ghost small" type="button">تحديث</button>
+        </div>
+        <div id="reservations-list" class="table-wrap"></div>
+      </section>
+
+      <!-- المنيو -->
+      <section id="panel-menu" class="panel" hidden>
+        <h2>المنيو</h2>
+        <div class="panel-head">
+          <h3>الأقسام</h3>
+          <button class="btn btn-brand small" type="button" data-new="categories">+ قسم</button>
+        </div>
+        <div id="categories-list" class="table-wrap"></div>
+
+        <div class="panel-head">
+          <h3>الأصناف</h3>
+          <button class="btn btn-brand small" type="button" data-new="menu_items">+ صنف</button>
+        </div>
+        <div id="items-list" class="table-wrap"></div>
+      </section>
+
+      <!-- المحتوى -->
+      <section id="panel-content" class="panel" hidden>
+        <h2>المحتوى</h2>
+        <div id="content-sections"></div>
+      </section>
+
+      <!-- الهوية -->
+      <section id="panel-identity" class="panel" hidden>
+        <h2>الهوية والموقع</h2>
+        <p class="note" id="athar-owned-note">
+          اسم المطعم والباقة يُداران من لوحة أثر، ولذلك لا يظهران هنا.
+        </p>
+        <form id="identity-form"></form>
+        <button id="identity-save" class="btn btn-brand" type="button">حفظ</button>
+      </section>
+
+      <!-- الحسابات -->
+      <section id="panel-users" class="panel" hidden>
+        <div class="panel-head">
+          <h2>الحسابات</h2>
+          <button id="user-new" class="btn btn-brand small" type="button">+ حساب</button>
+        </div>
+        <div id="users-list" class="table-wrap"></div>
+      </section>
+
+      <!-- حسابي -->
+      <section id="panel-account" class="panel" hidden>
+        <h2>حسابي</h2>
+        <form id="account-form" class="form-card">
+          <div class="field">
+            <label for="account-current">كلمة المرور الحالية</label>
+            <input id="account-current" type="password" required autocomplete="current-password">
+          </div>
+          <div class="field">
+            <label for="account-username">اسم مستخدم جديد (اختياري)</label>
+            <input id="account-username" autocomplete="username" spellcheck="false">
+          </div>
+          <div class="field">
+            <label for="account-password">كلمة مرور جديدة (اختياري)</label>
+            <input id="account-password" type="password" autocomplete="new-password" minlength="8">
+          </div>
+          <button class="btn btn-brand" type="submit">حفظ</button>
+          <p id="account-msg" class="msg" role="status"></p>
+        </form>
+      </section>
+    </main>
+  </div>
+</div>
+
+<!-- ==================== نافذة التحرير ==================== -->
+<dialog id="editor">
+  <form id="editor-form" method="dialog"></form>
+  <div class="dialog-body">
+    <h3 id="editor-title">تحرير</h3>
+    <div id="editor-fields"></div>
+    <p id="editor-msg" class="msg" role="status"></p>
+    <div class="dialog-actions">
+      <button id="editor-save" class="btn btn-brand" type="button">حفظ</button>
+      <button id="editor-delete" class="btn btn-danger" type="button">حذف</button>
+      <button class="btn btn-ghost" type="button" data-close-dialog>إغلاق</button>
+    </div>
+  </div>
+</dialog>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>

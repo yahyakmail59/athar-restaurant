@@ -1,0 +1,44 @@
+{
+  "$schema": "../../athar-console/node_modules/wrangler/config-schema.json",
+  "name": "athar-restaurant-api",
+  "main": "./worker.js",
+  "compatibility_date": "2026-08-19",
+  "workers_dev": true,
+
+  // لوحة المطعم تُخدم من نفس الأصل مثل المحركين الآخرين: لا CORS.
+  // `run_worker_first` يشمل `/r/*` و`/img/*` لأنهما يُبنيان في الـWorker،
+  // ولو تُركا للأصول الساكنة لأعادا 404 قبل أن يصل الطلب إلى الشيفرة.
+  "assets": {
+    "directory": "../public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*", "/internal/*", "/r/*", "/img/*"]
+  },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "restaurant-db",
+      // مؤقت حتى يُنشأ الفعلي بـ: wrangler d1 create restaurant-db
+      // يبقى بصيغة UUID ليعمل `wrangler dev --local`، والنشر به يفشل بوضوح.
+      "database_id": "00000000-0000-0000-0000-000000000000"
+    }
+  ],
+
+  // الصور والخطوط. الخطوط في R2 لا في حزمة الـWorker: ملفان بنحو 480KB
+  // يقاربان حدّ الحجم، وتحميلهما مرة والاحتفاظ بهما في العزلة أرخص.
+  "r2_buckets": [
+    {
+      "binding": "ASSETS_BUCKET",
+      "bucket_name": "athar-restaurant-assets"
+    }
+  ],
+
+  "vars": {
+    "PUBLIC_APP_URL": "https://athar-restaurant-api.yahyakmail59.workers.dev/"
+  },
+
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  }
+}
