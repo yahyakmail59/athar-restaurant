@@ -5,12 +5,30 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
 <title>لوحة المطعم — أثر</title>
-<link rel="stylesheet" href="./styles.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;900&display=swap">
+<!-- منسوخة حرفيًا عن لوحة أضنة الداخلية: هوية بصرية ثابتة (بنفسجي/أبيض) لا
+     تتبع ألوان أي مطعم — موظف ينتقل بين مطاعم يرى نفس اللوحة دائمًا. -->
+<link rel="stylesheet" href="./site/css/dashboard.css">
+<link rel="stylesheet" href="./panel-extra.css">
+<script>
+(function () {
+  try {
+    var saved = localStorage.getItem('theme');
+    if (saved === 'light' || saved === 'dark' || saved === 'auto') {
+      document.documentElement.setAttribute('data-theme', saved);
+    }
+  } catch (error) { /* وضع خاص — يبقى على ثيم النظام */ }
+}());
+</script>
 </head>
 <body>
 
+<a class="skip-link" href="#main">انتقل إلى المحتوى</a>
+
 <!-- ==================== الدخول ==================== -->
-<main id="login-view" class="login">
+<main id="login-view" class="login-screen">
   <form id="login-form" class="login-card" autocomplete="on">
     <h1>لوحة المطعم</h1>
     <p class="muted">ادخل بالبيانات التي أصدرتها لوحة أثر.</p>
@@ -29,166 +47,252 @@
       <input id="login-password" name="password" type="password" required autocomplete="current-password">
     </div>
 
-    <button class="btn btn-brand" type="submit">دخول</button>
+    <button class="btn btn-solid full-width" type="submit">دخول</button>
     <p id="login-error" class="msg" role="alert"></p>
   </form>
 </main>
 
 <!-- ==================== اللوحة ==================== -->
-<div id="app-view" hidden>
-  <header class="topbar">
-    <button id="nav-toggle" class="icon-btn" type="button" aria-label="القائمة" aria-expanded="false">☰</button>
-    <div class="topbar-title">
-      <strong id="restaurant-name">—</strong>
-      <span id="plan-badge" class="badge"></span>
-      <span id="env-badge" class="badge badge-demo" hidden>نسخة عرض</span>
-    </div>
-    <a id="public-link" class="btn btn-ghost small" href="#" target="_blank" rel="noopener">الموقع العام</a>
-    <button id="logout" class="btn btn-ghost small" type="button">خروج</button>
-  </header>
+<div id="app-view" class="app" hidden>
 
-  <div class="shell">
-    <nav id="sidenav" class="sidenav" aria-label="أقسام اللوحة">
-      <button class="nav-item is-active" type="button" data-panel="dashboard">لوحة التشغيل</button>
-      <button class="nav-item" type="button" data-panel="orders">الطلبات</button>
-      <button class="nav-item" type="button" data-panel="cashier">الكاشير</button>
-      <button class="nav-item" type="button" data-panel="reservations">الحجوزات</button>
-      <button class="nav-item" type="button" data-panel="menu">المنيو</button>
-      <button class="nav-item" type="button" data-panel="content">المحتوى</button>
-      <button class="nav-item" type="button" data-panel="identity">الهوية والموقع</button>
-      <button class="nav-item" type="button" data-panel="users">الحسابات</button>
-      <button class="nav-item" type="button" data-panel="account">حسابي</button>
+  <button class="nav-toggle" type="button" data-nav-toggle aria-expanded="false" aria-controls="sidebar">
+    <span class="bars" aria-hidden="true"></span> القائمة
+  </button>
+
+  <aside class="sidebar" id="sidebar">
+    <a class="logo" href="#" id="sidebar-logo-link">
+      <img id="sidebar-logo" alt="" hidden>
+      <span id="sidebar-wordmark" class="brand-wordmark"></span>
+    </a>
+
+    <nav class="side-nav" aria-label="التنقل الرئيسي">
+      <button class="side-link is-active" type="button" data-panel="dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+        لوحة التشغيل
+      </button>
+      <button class="side-link" type="button" data-panel="orders">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+        الطلبات
+      </button>
+      <button class="side-link" type="button" data-panel="cashier">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>
+        الكاشير
+      </button>
+      <button class="side-link" type="button" data-panel="reservations">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        الحجوزات
+      </button>
+      <p class="nav-group">المتجر</p>
+      <button class="side-link" type="button" data-panel="menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2M7 2v20M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>
+        المنيو
+      </button>
+      <button class="side-link" type="button" data-panel="content">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+        المحتوى
+      </button>
+      <p class="nav-group">الحساب</p>
+      <button class="side-link" type="button" data-panel="identity">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+        الهوية والموقع
+      </button>
+      <button class="side-link" type="button" data-panel="users">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        الحسابات
+      </button>
+      <button class="side-link" type="button" data-panel="account">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-3.3 2.7-5.5 8-5.5s8 2.2 8 5.5"/></svg>
+        حسابي
+      </button>
     </nav>
 
-    <main class="content">
-      <p id="toast" class="msg" role="status" hidden></p>
+    <div class="side-foot">
+      <a class="side-link" id="public-link" href="#" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20Z"/></svg>
+        عرض الموقع
+      </a>
+      <button type="button" class="side-link" data-theme-toggle aria-pressed="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+        <span data-theme-label>الوضع الداكن</span>
+      </button>
+      <button type="button" class="side-link" id="logout">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        تسجيل الخروج
+      </button>
+    </div>
+  </aside>
+
+  <div class="main" id="main">
+    <header class="topbar">
+      <span class="crumb" id="restaurant-name">—</span>
+      <div class="topbar-end">
+        <span class="badge" id="plan-badge"></span>
+        <span class="badge badge-demo" id="env-badge" hidden>نسخة عرض</span>
+        <div class="who">
+          <span class="who-avatar" id="who-avatar" aria-hidden="true">؟</span>
+          <span class="who-text"><b id="who-name">—</b><small id="who-role"></small></span>
+        </div>
+      </div>
+    </header>
+
+    <div class="panel">
+      <div class="panel-title">
+        <h1 id="panel-heading">لوحة التشغيل</h1>
+        <p id="panel-sub"></p>
+      </div>
+
+      <div class="toasts" id="toasts" role="status"></div>
 
       <!-- لوحة التشغيل -->
-      <section id="panel-dashboard" class="panel">
-        <h2>لوحة التشغيل</h2>
-        <div id="kpis" class="kpis"></div>
-        <h3>الأكثر مبيعًا هذا الأسبوع</h3>
-        <div id="top-items" class="table-wrap"></div>
+      <section id="panel-dashboard">
+        <section class="counters" id="kpis" aria-label="ملخص التشغيل"></section>
+        <section class="block">
+          <div class="block-head"><h2>الأكثر مبيعًا هذا الأسبوع</h2></div>
+          <div id="top-items"></div>
+        </section>
       </section>
 
       <!-- الطلبات -->
-      <section id="panel-orders" class="panel" hidden>
-        <div class="panel-head">
-          <h2>الطلبات</h2>
-          <div class="chips" id="order-filters">
-            <button class="chip is-active" type="button" data-status="">الكل</button>
-            <button class="chip" type="button" data-status="new">جديد</button>
-            <button class="chip" type="button" data-status="confirmed">مؤكَّد</button>
-            <button class="chip" type="button" data-status="preparing">قيد التحضير</button>
-            <button class="chip" type="button" data-status="delivered">مُسلَّم</button>
-            <button class="chip" type="button" data-status="cancelled">ملغى</button>
+      <section id="panel-orders" hidden>
+        <div class="block">
+          <div class="block-head">
+            <div class="chips" id="order-filters">
+              <button type="button" class="chip chip-on" data-status="">الكل</button>
+              <button type="button" class="chip" data-status="new">جديد</button>
+              <button type="button" class="chip" data-status="confirmed">مؤكَّد</button>
+              <button type="button" class="chip" data-status="preparing">قيد التحضير</button>
+              <button type="button" class="chip" data-status="delivered">مُسلَّم</button>
+              <button type="button" class="chip" data-status="cancelled">ملغى</button>
+            </div>
+            <button id="orders-refresh" class="btn btn-small" type="button">تحديث</button>
           </div>
-          <button id="orders-refresh" class="btn btn-ghost small" type="button">تحديث</button>
+          <div id="orders-list"></div>
         </div>
-        <div id="orders-list" class="cards"></div>
       </section>
 
       <!-- الكاشير -->
-      <section id="panel-cashier" class="panel" hidden>
-        <h2>الكاشير</h2>
-        <div class="cashier">
-          <div>
-            <div id="cashier-categories" class="chips"></div>
-            <div id="cashier-items" class="tile-grid"></div>
-          </div>
-          <aside class="ticket">
-            <h3>الطلب الحالي</h3>
-            <div id="ticket-lines" class="ticket-lines"><p class="muted">لم تُضف أصناف بعد.</p></div>
-            <p class="ticket-total"><span>الإجمالي</span><strong id="ticket-total">—</strong></p>
-            <div class="field">
-              <label for="cashier-table">الطاولة / الاسم</label>
-              <input id="cashier-table" placeholder="طاولة ٥">
-            </div>
-            <div class="field">
-              <label for="cashier-fulfillment">النوع</label>
+      <section id="panel-cashier" hidden>
+        <section class="cashier-stats" id="cashier-stats" aria-label="إحصاءات اليوم"></section>
+        <p id="cashier-result" class="msg" role="status" hidden></p>
+        <div class="cashier-form">
+          <fieldset class="field-group cashier-customer">
+            <legend>بيانات الطاولة</legend>
+            <div class="fields">
+              <div class="field"><label for="cashier-table">اسم الزبون / الطاولة <small>(اختياري)</small></label>
+              <input id="cashier-table" maxlength="30" autocomplete="off"></div>
+              <div class="field"><label for="cashier-count">عدد الزبائن</label>
+              <input id="cashier-count" type="number" min="1" max="100" value="1"></div>
+              <div class="field"><label for="cashier-fulfillment">النوع</label>
               <select id="cashier-fulfillment">
                 <option value="dine_in">في المطعم</option>
                 <option value="pickup">استلام</option>
                 <option value="delivery">توصيل</option>
-              </select>
+              </select></div>
+              <div class="field"><label for="cashier-notes">ملاحظات <small>(اختياري)</small></label>
+              <textarea id="cashier-notes" rows="2" maxlength="500"></textarea></div>
             </div>
-            <button id="cashier-submit" class="btn btn-brand" type="button" disabled>تسجيل الطلب</button>
-            <p id="cashier-result" class="msg" role="status"></p>
-          </aside>
+          </fieldset>
+
+          <section class="cashier-menu" aria-labelledby="cashier-menu-title">
+            <div class="block-head">
+              <div><h2 id="cashier-menu-title">اختر الأصناف</h2>
+              <p class="block-meta">الأسعار تُقرأ من القائمة الحالية ولا يمكن تعديلها من الكاشير.</p></div>
+            </div>
+            <div id="cashier-categories"></div>
+          </section>
+
+          <div class="cashier-submit">
+            <div>
+              <span><b data-cashier-count>0</b> قطعة مختارة</span>
+              <strong><b data-cashier-total>0</b> <span id="cashier-currency">₪</span></strong>
+            </div>
+            <button type="button" class="btn btn-solid" id="cashier-submit">حفظ طلب الكاشير</button>
+          </div>
         </div>
+
+        <section class="block" aria-labelledby="recent-cashier-orders">
+          <div class="block-head"><h2 id="recent-cashier-orders">آخر طلبات الكاشير</h2></div>
+          <div id="cashier-recent"></div>
+        </section>
       </section>
 
       <!-- الحجوزات -->
-      <section id="panel-reservations" class="panel" hidden>
-        <div class="panel-head">
-          <h2>الحجوزات</h2>
-          <button id="reservations-refresh" class="btn btn-ghost small" type="button">تحديث</button>
+      <section id="panel-reservations" hidden>
+        <div class="block">
+          <div class="block-head">
+            <h2>الحجوزات</h2>
+            <button id="reservations-refresh" class="btn btn-small" type="button">تحديث</button>
+          </div>
+          <div id="reservations-list"></div>
         </div>
-        <div id="reservations-list" class="table-wrap"></div>
       </section>
 
       <!-- المنيو -->
-      <section id="panel-menu" class="panel" hidden>
-        <h2>المنيو</h2>
-        <div class="panel-head">
-          <h3>الأقسام</h3>
-          <button class="btn btn-brand small" type="button" data-new="categories">+ قسم</button>
+      <section id="panel-menu" hidden>
+        <div class="block">
+          <div class="block-head">
+            <h2>الأقسام</h2>
+            <button class="btn btn-small btn-solid" type="button" data-new="categories">+ قسم</button>
+          </div>
+          <div id="categories-list"></div>
         </div>
-        <div id="categories-list" class="table-wrap"></div>
-
-        <div class="panel-head">
-          <h3>الأصناف</h3>
-          <button class="btn btn-brand small" type="button" data-new="menu_items">+ صنف</button>
+        <div class="block">
+          <div class="block-head">
+            <h2>الأصناف</h2>
+            <button class="btn btn-small btn-solid" type="button" data-new="menu_items">+ صنف</button>
+          </div>
+          <div id="items-list"></div>
         </div>
-        <div id="items-list" class="table-wrap"></div>
       </section>
 
       <!-- المحتوى -->
-      <section id="panel-content" class="panel" hidden>
-        <h2>المحتوى</h2>
+      <section id="panel-content" hidden>
         <div id="content-sections"></div>
       </section>
 
       <!-- الهوية -->
-      <section id="panel-identity" class="panel" hidden>
-        <h2>الهوية والموقع</h2>
-        <p class="note" id="athar-owned-note">
+      <section id="panel-identity" hidden>
+        <p class="empty" id="athar-owned-note">
           اسم المطعم والباقة يُداران من لوحة أثر، ولذلك لا يظهران هنا.
         </p>
         <form id="identity-form"></form>
-        <button id="identity-save" class="btn btn-brand" type="button">حفظ</button>
+        <div class="cashier-submit">
+          <span></span>
+          <button id="identity-save" class="btn btn-solid" type="button">حفظ</button>
+        </div>
       </section>
 
       <!-- الحسابات -->
-      <section id="panel-users" class="panel" hidden>
-        <div class="panel-head">
-          <h2>الحسابات</h2>
-          <button id="user-new" class="btn btn-brand small" type="button">+ حساب</button>
+      <section id="panel-users" hidden>
+        <div class="block">
+          <div class="block-head">
+            <h2>الحسابات</h2>
+            <button id="user-new" class="btn btn-small btn-solid" type="button">+ حساب</button>
+          </div>
+          <div id="users-list"></div>
         </div>
-        <div id="users-list" class="table-wrap"></div>
       </section>
 
       <!-- حسابي -->
-      <section id="panel-account" class="panel" hidden>
-        <h2>حسابي</h2>
-        <form id="account-form" class="form-card">
-          <div class="field">
-            <label for="account-current">كلمة المرور الحالية</label>
-            <input id="account-current" type="password" required autocomplete="current-password">
+      <section id="panel-account" hidden>
+        <form id="account-form" class="block">
+          <div class="fields">
+            <div class="field"><label for="account-current">كلمة المرور الحالية</label>
+            <input id="account-current" type="password" required autocomplete="current-password"></div>
+            <div class="field"><label for="account-username">اسم مستخدم جديد <small>(اختياري)</small></label>
+            <input id="account-username" autocomplete="username" spellcheck="false"></div>
+            <div class="field"><label for="account-password">كلمة مرور جديدة <small>(اختياري)</small></label>
+            <input id="account-password" type="password" autocomplete="new-password" minlength="8"></div>
           </div>
-          <div class="field">
-            <label for="account-username">اسم مستخدم جديد (اختياري)</label>
-            <input id="account-username" autocomplete="username" spellcheck="false">
-          </div>
-          <div class="field">
-            <label for="account-password">كلمة مرور جديدة (اختياري)</label>
-            <input id="account-password" type="password" autocomplete="new-password" minlength="8">
-          </div>
-          <button class="btn btn-brand" type="submit">حفظ</button>
+          <button class="btn btn-solid" type="submit">حفظ</button>
           <p id="account-msg" class="msg" role="status"></p>
         </form>
       </section>
-    </main>
+
+      <footer class="foot">
+        <span id="foot-name"></span>
+      </footer>
+    </div>
   </div>
 </div>
 
@@ -197,12 +301,12 @@
   <form id="editor-form" method="dialog"></form>
   <div class="dialog-body">
     <h3 id="editor-title">تحرير</h3>
-    <div id="editor-fields"></div>
+    <div id="editor-fields" class="fields"></div>
     <p id="editor-msg" class="msg" role="status"></p>
     <div class="dialog-actions">
-      <button id="editor-save" class="btn btn-brand" type="button">حفظ</button>
-      <button id="editor-delete" class="btn btn-danger" type="button">حذف</button>
-      <button class="btn btn-ghost" type="button" data-close-dialog>إغلاق</button>
+      <button id="editor-save" class="btn btn-solid" type="button">حفظ</button>
+      <button id="editor-delete" class="btn" type="button">حذف</button>
+      <button class="btn" type="button" data-close-dialog>إغلاق</button>
     </div>
   </div>
 </dialog>

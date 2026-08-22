@@ -67,13 +67,15 @@ async function api(path, options = {}) {
 
 const post = (path, body) => api(path, { method: 'POST', body: JSON.stringify(body) });
 
+/**
+ * رسالة عابرة — بنمط `.toast` عند أضنة (بديل إطار `messages` في Django،
+ * الذي لا مقابل له في تطبيق صفحة واحدة يقرأ من JSON).
+ */
 function toast(message, kind = 'ok') {
-  const node = $('toast');
-  node.textContent = message;
-  node.className = `msg ${kind}`;
-  node.hidden = false;
-  clearTimeout(toast.timer);
-  toast.timer = setTimeout(() => { node.hidden = true; }, 4000);
+  const host = $('toasts');
+  const node = el('p', { className: `toast toast-${kind === 'error' ? 'error' : 'success'}`, textContent: message });
+  host.append(node);
+  setTimeout(() => node.remove(), 4000);
 }
 
 const money = (minor) => `${(Number(minor || 0) / 100).toFixed(2)} ${state.settings.currency || '₪'}`;
@@ -139,13 +141,28 @@ const loaders = {
   account: async () => {},
 };
 
+const PANEL_TITLES = {
+  dashboard: ['لوحة التشغيل', ''],
+  orders: ['الطلبات', ''],
+  cashier: ['كاشير المطعم', 'سجّل طلبات الطاولات لتدخل في المبيعات والتقارير.'],
+  reservations: ['الحجوزات', ''],
+  menu: ['المنيو', ''],
+  content: ['المحتوى', ''],
+  identity: ['الهوية والموقع', ''],
+  users: ['الحسابات', ''],
+  account: ['حسابي', ''],
+};
+
 async function showPanel(name) {
   for (const panel of panels) $(`panel-${panel}`).hidden = panel !== name;
-  for (const button of document.querySelectorAll('.nav-item')) {
+  for (const button of document.querySelectorAll('.side-link[data-panel]')) {
     button.classList.toggle('is-active', button.dataset.panel === name);
   }
-  $('sidenav').classList.remove('is-open');
-  $('nav-toggle').setAttribute('aria-expanded', 'false');
+  const [title, sub] = PANEL_TITLES[name] || ['', ''];
+  $('panel-heading').textContent = title;
+  $('panel-sub').textContent = sub;
+  $('sidebar').classList.remove('is-open');
+  document.querySelector('[data-nav-toggle]').setAttribute('aria-expanded', 'false');
   try {
     await loaders[name]();
   } catch (failure) {
@@ -153,13 +170,24 @@ async function showPanel(name) {
   }
 }
 
-document.querySelectorAll('.nav-item').forEach((button) => {
+document.querySelectorAll('.side-link[data-panel]').forEach((button) => {
   button.addEventListener('click', () => showPanel(button.dataset.panel));
 });
 
-$('nav-toggle').addEventListener('click', () => {
-  const open = $('sidenav').classList.toggle('is-open');
-  $('nav-toggle').setAttribute('aria-expanded', String(open));
+document.querySelector('[data-nav-toggle]').addEventListener('click', () => {
+  const open = $('sidebar').classList.toggle('is-open');
+  document.querySelector('[data-nav-toggle]').setAttribute('aria-expanded', String(open));
+});
+
+// تبديل الثيم — نفس مفتاح localStorage الذي تقرؤه سكربت ما قبل الرسم في
+// index.html، فلا يومض الوضع الخطأ عند إعادة التحميل.
+document.querySelector('[data-theme-toggle]').addEventListener('click', () => {
+  const root = document.documentElement;
+  const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  root.setAttribute('data-theme', next);
+  try { localStorage.setItem('theme', next); } catch { /* وضع خاص */ }
+  document.querySelector('[data-theme-toggle]').setAttribute('aria-pressed', String(next === 'dark'));
+  document.querySelector('[data-theme-label]').textContent = next === 'dark' ? 'الوضع الفاتح' : 'الوضع الداكن';
 });
 
 /* ==================== الإقلاع ==================== */
@@ -181,10 +209,25 @@ async function bootstrap() {
   $('app-view').hidden = false;
   $('restaurant-name').textContent = info.restaurant.name;
   $('public-link').href = info.restaurant.public_url;
+  $('foot-name').textContent = `${info.restaurant.name} — لوحة أثر`;
+
+  if (state.settings.logo_url) {
+    $('sidebar-logo').src = state.settings.logo_url;
+    $('sidebar-logo').alt = info.restaurant.name;
+    $('sidebar-logo').hidden = false;
+    $('sidebar-wordmark').hidden = true;
+  } else {
+    $('sidebar-wordmark').textContent = info.restaurant.name;
+  }
+  $('sidebar-logo-link').href = info.restaurant.public_url;
+
+  const initial = (info.user.name || info.user.username || '؟').trim().slice(0, 1);
+  $('who-avatar').textContent = initial;
+  $('who-name').textContent = info.user.name || info.user.username;
+  $('who-role').textContent = ROLE_LABEL_TOP[info.user.role] || '';
 
   const plan = $('plan-badge');
   plan.textContent = info.restaurant.plan_code === 'full' ? 'الباقة الكاملة' : 'باقة المنيو';
-  plan.className = `badge ${info.restaurant.plan_code === 'full' ? 'badge-full' : ''}`;
   $('env-badge').hidden = info.restaurant.environment !== 'demo';
 
   // ما لا تشمله الباقة يُخفى من التنقل. الخادم يرفضه أيضًا؛ الإخفاء يمنع
@@ -199,14 +242,16 @@ async function bootstrap() {
     menu: info.user.role !== 'cashier',
     content: info.user.role !== 'cashier',
   };
-  for (const button of document.querySelectorAll('.nav-item')) {
+  for (const button of document.querySelectorAll('.side-link[data-panel]')) {
     const allowed = gated[button.dataset.panel];
     button.hidden = allowed === false;
   }
 
-  const first = [...document.querySelectorAll('.nav-item')].find((button) => !button.hidden);
+  const first = [...document.querySelectorAll('.side-link[data-panel]')].find((button) => !button.hidden);
   await showPanel(first ? first.dataset.panel : 'account');
 }
+
+const ROLE_LABEL_TOP = { owner: 'المالك', manager: 'مدير', cashier: 'كاشير' };
 
 /* ==================== لوحة التشغيل ==================== */
 
@@ -219,9 +264,9 @@ async function loadDashboard() {
     ['إيراد الأسبوع', money(data.week.revenue)],
     ['حجوزات تنتظر ردًّا', data.pending_reservations],
     ['طلبات جديدة', data.by_status.new || 0],
-  ].map(([label, value]) => el('div', { className: 'kpi' }, [
-    el('span', { textContent: label }),
-    el('strong', { textContent: String(value) }),
+  ].map(([label, value]) => el('article', { className: 'counter' }, [
+    el('div', { className: 'counter-head' }, [el('span', { className: 'counter-label', textContent: label })]),
+    el('b', { className: 'counter-value', textContent: String(value) }),
   ])));
 
   $('top-items').replaceChildren(table(
@@ -231,12 +276,15 @@ async function loadDashboard() {
   ));
 }
 
+/** جدول بنمط أضنة (`.table-wrap` > `table.data`) — قسم جديد لا يعيد بناءه. */
 function table(headers, rows, emptyText) {
-  if (!rows.length) return el('p', { className: 'muted', textContent: emptyText, style: 'padding:1rem' });
+  if (!rows.length) return el('p', { className: 'empty', textContent: emptyText });
   const head = el('tr', {}, headers.map((label) => el('th', { textContent: label })));
   const body = rows.map((cells) => el('tr', {}, cells.map((cell) =>
     el('td', {}, [cell instanceof Node ? cell : String(cell)]))));
-  return el('table', {}, [el('thead', {}, [head]), el('tbody', {}, body)]);
+  return el('div', { className: 'table-wrap' }, [
+    el('table', { className: 'data' }, [el('thead', {}, [head]), el('tbody', {}, body)]),
+  ]);
 }
 
 /* ==================== الطلبات ==================== */
@@ -252,7 +300,7 @@ document.querySelectorAll('#order-filters .chip').forEach((chip) => {
   chip.addEventListener('click', () => {
     state.orderFilter = chip.dataset.status;
     document.querySelectorAll('#order-filters .chip').forEach((other) =>
-      other.classList.toggle('is-active', other === chip));
+      other.classList.toggle('chip-on', other === chip));
     loadOrders().catch((failure) => toast(failure.message, 'error'));
   });
 });
@@ -264,7 +312,7 @@ async function loadOrders() {
   const data = await api(`/api/orders${query}`);
   const host = $('orders-list');
   if (!data.orders.length) {
-    host.replaceChildren(el('p', { className: 'muted', textContent: 'لا طلبات في هذا التصنيف.' }));
+    host.replaceChildren(el('p', { className: 'empty', textContent: 'لا طلبات في هذا التصنيف.' }));
     return;
   }
   host.replaceChildren(...data.orders.map(orderCard));
@@ -287,21 +335,21 @@ function orderCard(order) {
   const next = NEXT_STATUS[order.status];
   if (next) {
     actions.push(el('button', {
-      className: 'btn btn-brand small', type: 'button',
+      className: 'btn btn-solid btn-small', type: 'button',
       textContent: `→ ${STATUS_LABEL[next]}`,
       onclick: () => moveOrder(order.id, next),
     }));
   }
   if (order.status !== 'cancelled' && order.status !== 'delivered') {
     actions.push(el('button', {
-      className: 'btn btn-danger small', type: 'button', textContent: 'إلغاء',
+      className: 'btn btn-small', type: 'button', textContent: 'إلغاء',
       onclick: () => moveOrder(order.id, 'cancelled'),
     }));
   }
-  if (state.me.features.receipts) {
+  if (state.me.features.receipts && order.token) {
     actions.push(el('a', {
-      className: 'btn btn-ghost small', target: '_blank', rel: 'noopener',
-      href: `${state.me.restaurant.public_url}order/${order.token}/receipt.png`,
+      className: 'btn btn-small', target: '_blank', rel: 'noopener',
+      href: `${state.me.restaurant.public_url}o/${order.token}/receipt.png`,
       textContent: 'الإيصال',
     }));
   }
@@ -312,11 +360,11 @@ function orderCard(order) {
     order.address,
   ].filter(Boolean).join(' · ');
 
-  return el('article', { className: 'order' }, [
+  return el('article', { className: 'order-card' }, [
     el('header', {}, [
       el('code', { textContent: order.code }),
-      el('span', { className: `badge status-${order.status}`, textContent: STATUS_LABEL[order.status] }),
-      el('span', { className: 'badge', textContent: FULFILLMENT_LABEL[order.fulfillment] || '' }),
+      el('span', { className: `status-badge status-${order.status}`, textContent: STATUS_LABEL[order.status] }),
+      el('span', { className: 'status-badge', textContent: FULFILLMENT_LABEL[order.fulfillment] || '' }),
     ]),
     el('div', { className: 'muted', textContent: `${order.customer_name}${contact ? ` — ${contact}` : ''}` }),
     el('ul', {}, lines),
@@ -339,98 +387,155 @@ async function moveOrder(id, status) {
   }
 }
 
-/* ==================== الكاشير ==================== */
+/* ==================== الكاشير ====================
+ *
+ * بنمط أضنة: عدّاد كمية على كل صنف مجموع تحت قسمه، لا سلّة نقر-فأضِف.
+ * الكاشير يرى القائمة كلها دفعة واحدة ويضبط الأرقام، وهذا أسرع على شاشة
+ * لمس حين تكون الأصناف معروفة (عكس زبون يستكشف المنيو لأول مرة). */
 
 async function loadCashier() {
   await refreshMenuData();
-  const chips = $('cashier-categories');
-  chips.replaceChildren(...state.categories.map((category, index) => el('button', {
-    className: `chip${index === 0 ? ' is-active' : ''}`, type: 'button',
-    textContent: category.name_ar,
-    onclick: (event) => {
-      chips.querySelectorAll('.chip').forEach((chip) => chip.classList.toggle('is-active', chip === event.target));
-      renderCashierItems(category.id);
-    },
-  })));
-  renderCashierItems(state.categories[0]?.id);
-  renderTicket();
-}
+  state.ticket = [];
+  renderCashierMenu();
+  renderCashierTotals();
+  $('cashier-result').hidden = true;
 
-function renderCashierItems(categoryId) {
-  const items = state.items.filter((item) => item.category_id === categoryId && Number(item.is_available));
-  $('cashier-items').replaceChildren(...items.map((item) => el('button', {
-    className: 'tile', type: 'button', onclick: () => addToTicket(item),
-  }, [
-    el('strong', { textContent: item.name_ar }),
-    Number(item.is_priced)
-      ? el('span', { textContent: money(item.price_minor) })
-      : el('em', { textContent: 'حسب الطلب' }),
+  const stats = await api('/api/dashboard');
+  $('cashier-stats').replaceChildren(...[
+    ['طلبات اليوم', stats.today.orders],
+    ['إيراد اليوم', money(stats.today.revenue)],
+    ['طلبات الأسبوع', stats.week.orders],
+  ].map(([label, value]) => el('article', {}, [
+    el('span', { textContent: label }), el('b', { textContent: String(value) }),
   ])));
+
+  await loadCashierRecent();
 }
 
-function addToTicket(item) {
-  const existing = state.ticket.find((line) => line.item_id === item.id);
-  if (existing) existing.quantity += 1;
-  else state.ticket.push({ item_id: item.id, name: item.name_ar, price: Number(item.price_minor), quantity: 1, priced: Number(item.is_priced) });
-  renderTicket();
-}
-
-function renderTicket() {
-  const host = $('ticket-lines');
-  if (!state.ticket.length) {
-    host.replaceChildren(el('p', { className: 'muted', textContent: 'لم تُضف أصناف بعد.' }));
-    $('ticket-total').textContent = '—';
-    $('cashier-submit').disabled = true;
-    return;
+function renderCashierMenu() {
+  const byCategory = new Map(state.categories.map((category) => [category.id, []]));
+  for (const item of state.items) {
+    if (Number(item.is_available) && byCategory.has(item.category_id)) byCategory.get(item.category_id).push(item);
   }
-  host.replaceChildren(...state.ticket.map((line, index) => el('div', { className: 'ticket-line' }, [
-    el('div', { textContent: `${line.name} — ${line.priced ? money(line.price) : 'حسب الطلب'}` }),
-    el('div', { className: 'qty' }, [
-      el('button', {
-        type: 'button', textContent: '−', ariaLabel: 'إنقاص',
-        onclick: () => {
-          line.quantity -= 1;
-          if (line.quantity < 1) state.ticket.splice(index, 1);
-          renderTicket();
-        },
-      }),
-      el('span', { textContent: String(line.quantity) }),
-      el('button', {
-        type: 'button', textContent: '+', ariaLabel: 'زيادة',
-        onclick: () => { if (line.quantity < 99) { line.quantity += 1; renderTicket(); } },
-      }),
-    ]),
-  ])));
+  $('cashier-categories').replaceChildren(...state.categories
+    .filter((category) => byCategory.get(category.id)?.length)
+    .map((category) => el('section', { className: 'cashier-category' }, [
+      el('h3', { textContent: category.name_ar }),
+      el('div', { className: 'cashier-items' }, byCategory.get(category.id).map(cashierItemRow)),
+    ])));
+}
 
+function cashierItemRow(item) {
+  const line = state.ticket.find((row) => row.item_id === item.id);
+  const priced = Number(item.is_priced);
+  const input = el('input', {
+    type: 'number', min: '0', max: '99', inputMode: 'numeric',
+    value: String(line?.quantity || 0),
+    ariaLabel: `كمية ${item.name_ar}`,
+    dataset: { itemId: item.id, price: String(item.price_minor), priced: priced ? '1' : '0' },
+  });
+  input.addEventListener('change', () => setCashierQuantity(item, Math.max(0, Math.min(99, Number(input.value) || 0))));
+
+  const step = (delta) => {
+    const next = Math.max(0, Math.min(99, Number(input.value || 0) + delta));
+    input.value = String(next);
+    setCashierQuantity(item, next);
+  };
+
+  return el('article', { className: 'cashier-item' }, [
+    item.image_url
+      ? el('img', { src: item.image_url, alt: '', width: 60, height: 45, loading: 'lazy' })
+      : el('span', { className: 'cashier-item-placeholder', 'aria-hidden': 'true' }),
+    el('div', { className: 'cashier-item-copy' }, [
+      el('b', { textContent: item.name_ar }),
+      el('small', { textContent: item.name_en || '' }),
+      el('strong', { textContent: priced ? money(item.price_minor) : 'حسب الطلب' }),
+    ]),
+    el('div', { className: 'quantity-control' }, [
+      el('button', { type: 'button', textContent: '−', ariaLabel: `إنقاص ${item.name_ar}`, onclick: () => step(-1) }),
+      input,
+      el('button', { type: 'button', textContent: '+', ariaLabel: `زيادة ${item.name_ar}`, onclick: () => step(1) }),
+    ]),
+  ]);
+}
+
+function setCashierQuantity(item, quantity) {
+  const index = state.ticket.findIndex((row) => row.item_id === item.id);
+  if (quantity <= 0) {
+    if (index >= 0) state.ticket.splice(index, 1);
+  } else if (index >= 0) {
+    state.ticket[index].quantity = quantity;
+  } else {
+    state.ticket.push({
+      item_id: item.id, quantity,
+      priced: Number(item.is_priced), price: Number(item.price_minor),
+    });
+  }
+  renderCashierTotals();
+}
+
+function renderCashierTotals() {
+  const count = state.ticket.reduce((sum, line) => sum + line.quantity, 0);
   // إجمالي تقديري للعرض. الرقم الذي يُحفظ يحسبه الخادم من قاعدة البيانات.
   const total = state.ticket.reduce((sum, line) => sum + (line.priced ? line.price * line.quantity : 0), 0);
-  $('ticket-total').textContent = money(total);
-  $('cashier-submit').disabled = false;
+  document.querySelectorAll('[data-cashier-count]').forEach((node) => { node.textContent = String(count); });
+  document.querySelectorAll('[data-cashier-total]').forEach((node) => { node.textContent = (total / 100).toFixed(2); });
+  $('cashier-currency').textContent = state.settings.currency || '₪';
 }
 
 $('cashier-submit').addEventListener('click', async () => {
   const button = $('cashier-submit');
   const result = $('cashier-result');
+  if (!state.ticket.length) {
+    result.hidden = false; result.className = 'msg error'; result.textContent = 'اختر صنفًا واحدًا على الأقل.';
+    return;
+  }
   button.disabled = true;
-  result.textContent = '';
+  result.hidden = false; result.className = 'msg'; result.textContent = '';
   try {
     const order = await post('/api/orders', {
       customer_name: $('cashier-table').value.trim() || 'زبون',
+      customer_count: Number($('cashier-count').value || 1),
       table_number: $('cashier-table').value.trim(),
       fulfillment: $('cashier-fulfillment').value,
+      notes: $('cashier-notes').value.trim(),
       lines: state.ticket.map((line) => ({ item_id: line.item_id, quantity: line.quantity })),
     });
     state.ticket = [];
     $('cashier-table').value = '';
-    renderTicket();
+    $('cashier-count').value = '1';
+    $('cashier-notes').value = '';
+    renderCashierMenu();
+    renderCashierTotals();
     result.className = 'msg ok';
     result.textContent = `سُجّل الطلب ${order.code} بإجمالي ${money(order.total_minor)}.`;
+    await loadCashierRecent();
   } catch (failure) {
     result.className = 'msg error';
     result.textContent = failure.message;
+  } finally {
     button.disabled = false;
   }
 });
+
+async function loadCashierRecent() {
+  const data = await api('/api/orders?limit=10');
+  const cashierOrders = data.orders.filter((order) => order.source === 'cashier');
+  $('cashier-recent').replaceChildren(table(
+    ['الطلب', 'الطاولة', 'الزبائن', 'الإجمالي', 'الوقت'],
+    cashierOrders.map((order) => [
+      order.token
+        ? el('a', {
+          href: `${state.me.restaurant.public_url}o/${order.token}/`, target: '_blank', rel: 'noopener',
+          textContent: order.code,
+        })
+        : order.code,
+      order.table_number || '—', order.customer_count,
+      money(order.total_minor), new Date(order.created_at).toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' }),
+    ]),
+    'لا توجد طلبات مسجلة من الكاشير بعد.',
+  ));
+}
 
 /* ==================== الحجوزات ==================== */
 
@@ -445,11 +550,11 @@ async function loadReservations() {
     ['التاريخ', 'الوقت', 'الاسم', 'الهاتف', 'الضيوف', 'المناسبة', 'الحالة', ''],
     data.reservations.map((row) => [
       row.date, row.time, row.full_name, row.phone, row.guests, row.occasion || '—',
-      el('span', { className: `badge status-${row.status}`, textContent: RESERVATION_LABEL[row.status] }),
+      el('span', { className: `status-badge status-${row.status}`, textContent: RESERVATION_LABEL[row.status] }),
       el('div', { className: 'actions' }, ['confirmed', 'contacted', 'cancelled']
         .filter((status) => status !== row.status)
         .map((status) => el('button', {
-          className: 'btn btn-ghost small', type: 'button', textContent: RESERVATION_LABEL[status],
+          className: 'btn btn-small', type: 'button', textContent: RESERVATION_LABEL[status],
           onclick: async () => {
             try {
               await post(`/api/reservations/${encodeURIComponent(row.id)}/status`, { status });
@@ -627,14 +732,14 @@ async function loadMenu() {
 }
 
 const editButton = (section, row) => el('button', {
-  className: 'btn btn-ghost small', type: 'button', textContent: 'تحرير',
+  className: 'btn btn-small', type: 'button', textContent: 'تحرير',
   onclick: () => openEditor(section, row),
 });
 
 function subRowButton(section, item, rows) {
   const label = rows.length ? rows.map((row) => row.name_ar).join('، ') : '+ إضافة';
   return el('button', {
-    className: 'btn btn-ghost small', type: 'button', textContent: label,
+    className: 'btn btn-small', type: 'button', textContent: label,
     onclick: () => {
       if (!rows.length) return openEditor(section, { menu_item_id: item.id });
       return openEditor(section, rows[0], rows, item.id);
@@ -648,11 +753,11 @@ async function loadContent() {
   $('content-sections').replaceChildren(...sections.map((section, index) => {
     const rows = results[index].rows;
     const titleField = FIELDS[section][0][0];
-    return el('div', { className: 'group' }, [
-      el('div', { className: 'panel-head' }, [
-        el('h3', { textContent: SECTION_LABEL[section] }),
+    return el('div', { className: 'block' }, [
+      el('div', { className: 'block-head' }, [
+        el('h2', { textContent: SECTION_LABEL[section] }),
         el('button', {
-          className: 'btn btn-brand small', type: 'button', textContent: '+ إضافة',
+          className: 'btn btn-small btn-solid', type: 'button', textContent: '+ إضافة',
           onclick: () => openEditor(section, {}),
         }),
       ]),
@@ -688,7 +793,7 @@ function openEditor(section, row, siblings = null, parentId = null) {
   // الأحجام والإضافات تُدار في نافذة الصنف نفسه، فنعرض إخوته للتنقل بينها.
   const nav = siblings && siblings.length > 1
     ? el('div', { className: 'chips', style: 'margin-bottom:1rem' }, siblings.map((sibling) => el('button', {
-      className: `chip${sibling.id === row.id ? ' is-active' : ''}`, type: 'button',
+      className: `chip${sibling.id === row.id ? ' chip-on' : ''}`, type: 'button',
       textContent: sibling.name_ar,
       onclick: () => openEditor(section, sibling, siblings, parentId),
     })).concat([el('button', {
@@ -940,9 +1045,9 @@ async function loadIdentity() {
   const info = await api('/api/me');
   state.settings = info.settings;
   $('identity-form').replaceChildren(...IDENTITY_GROUPS.map(([title, fields]) =>
-    el('div', { className: 'group' }, [
+    el('div', { className: 'block' }, [
       el('h3', { textContent: title }),
-      el('div', { className: 'form-grid' }, fields.map(([name, label, type]) =>
+      el('div', { className: 'fields' }, fields.map(([name, label, type]) =>
         identityField(name, label, type, state.settings[name]))),
     ])));
 }
@@ -1007,13 +1112,13 @@ async function loadUsers() {
       Number(row.is_active) ? 'مفعّل' : 'معطّل',
       el('div', { className: 'actions' }, [
         el('button', {
-          className: 'btn btn-ghost small', type: 'button',
+          className: 'btn btn-small', type: 'button',
           textContent: Number(row.is_active) ? 'تعطيل' : 'تفعيل',
           disabled: row.role === 'owner',
           onclick: () => patchUser(row.id, { is_active: !Number(row.is_active) }),
         }),
         el('button', {
-          className: 'btn btn-ghost small', type: 'button', textContent: 'كلمة مرور جديدة',
+          className: 'btn btn-small', type: 'button', textContent: 'كلمة مرور جديدة',
           onclick: () => promptPassword(row),
         }),
       ]),

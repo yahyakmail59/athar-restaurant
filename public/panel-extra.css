@@ -1,0 +1,98 @@
+/**
+ * إضافات فوق `site/css/dashboard.css` المنسوخ حرفيًا عن أضنة — لا تعدّله.
+ *
+ * أضنة لا تملك شاشة دخول ولا نافذة تحرير منبثقة (يستعمل Django صفحات دخول
+ * وتحرير منفصلة)؛ هذا الملف يضيف الأنماط التي تحتاجها لوحتي بلغة الألوان
+ * والمتغيّرات نفسها من dashboard.css، فتبدو جزءًا من التصميم لا رقعة عليه.
+ */
+
+.login-screen {
+  min-height: 100vh; display: grid; place-items: center; padding: 24px;
+  background: var(--canvas);
+}
+.login-card {
+  width: min(400px, 100%); background: var(--panel); border-radius: var(--r-xl);
+  padding: 32px 28px; box-shadow: var(--shadow);
+}
+.login-card h1 { margin: 0 0 6px; font-family: var(--arabic); font-size: 1.3rem; }
+.login-card .muted { margin: 0 0 20px; }
+.login-card .field { margin-bottom: 14px; }
+.login-card label {
+  display: block; font-size: .82rem; font-weight: 600; margin-bottom: 5px; color: var(--muted);
+}
+.login-card input {
+  width: 100%; min-height: 46px; padding: 0 14px; border-radius: var(--r);
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  font-family: var(--arabic); font-size: .92rem;
+}
+.login-card input:focus-visible { outline: 2px solid var(--purple); outline-offset: 1px; }
+.full-width { width: 100%; }
+
+.brand-wordmark { display: block; padding: 14px 10px; color: #fff; font-weight: 700; text-align: center; }
+
+/* أضنة تفرّق `.is-active` بوسم `<a>` (`.side-nav a.is-active`) لأن تنقّلها
+   روابط حقيقية بين صفحات؛ لوحتي تطبيق صفحة واحدة فأزرار التنقل عناصر
+   `<button>`، والقاعدة الأصلية لا تطابقها. هذه نسخة بلا شرط الوسم. */
+.side-link.is-active { background: #fff; color: var(--purple); font-weight: 700; }
+.side-link.is-active svg { color: var(--purple); }
+
+/* نافذة التحرير: بنفس بطاقة أضنة (`.panel`/`.block`) بلا اختراع لغة جديدة. */
+dialog {
+  border: 0; border-radius: var(--r-xl); background: var(--panel); color: var(--ink);
+  width: min(560px, calc(100% - 32px)); max-height: 88vh; padding: 0; box-shadow: var(--shadow);
+}
+dialog::backdrop { background: rgba(31, 20, 53, .55); }
+dialog .dialog-body { padding: 24px; overflow-y: auto; max-height: 88vh; }
+dialog h3 { margin: 0 0 16px; font-family: var(--arabic); }
+.dialog-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+.dialog-actions .btn:first-child { margin-inline-start: auto; }
+
+/* عناصر لوحة أثر التي لا تحمل مقابلًا في أضنة: علامات الباقة وشارة العرض. */
+.badge {
+  display: inline-block; padding: 3px 11px; border-radius: 999px; font-size: .74rem;
+  font-weight: 700; background: var(--purple-soft); color: var(--purple-ink);
+}
+.badge-demo { background: var(--pink-soft); color: var(--pink); }
+
+/* حقول بيانات الجدول العامة (Bearer / اختيار / صورة) لا تملك مقابلًا جاهزًا. */
+select, textarea {
+  width: 100%; min-height: 46px; padding: 8px 14px; border-radius: var(--r);
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  font-family: var(--arabic); font-size: .88rem;
+}
+textarea { min-height: 80px; resize: vertical; }
+input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--purple); }
+input[type="color"] { padding: 3px; min-height: 44px; cursor: pointer; }
+.field-inline { display: flex; align-items: center; gap: 10px; min-height: 46px; }
+.field-inline label { margin: 0; }
+.thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 10px; border: 1px solid var(--line); }
+.upload-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* أزرار الشرائح (`.chips`/`.chip`) عند أضنة روابط `<a>`؛ لوحتي تستعملها
+   كأزرار حالة بلا انتقال صفحة، فأزرار HTML تحمل نفس الأصناف لتُنسَّق مثلها. */
+button.chip { font: inherit; cursor: pointer; }
+
+/* رسالة حالة مضمَّنة داخل نموذج واحد (لا `.toast` العائم) — نتيجة عملية
+   لصيقة بزرها، كخطأ حفظ في نافذة التحرير أو نتيجة إرسال طلب الكاشير. */
+.muted { color: var(--faint); }
+.msg { margin: 10px 0 0; font-size: .86rem; min-height: 1.3em; }
+.msg.error { color: var(--pink); }
+.msg.ok { color: var(--wa); }
+
+/* بطاقة طلب مدمجة — تُستعمل في قائمة «الطلبات» حيث المحتوى أغنى من صف
+   جدول عادي (أصناف، ملاحظة، إجراءات) فلا يناسبها `table.data`. */
+.order-card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg);
+  padding: 16px; margin-bottom: 10px;
+}
+.order-card header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.order-card header code { font-weight: 800; letter-spacing: .04em; }
+.order-card ul { margin: 8px 0; padding-inline-start: 18px; font-size: .86rem; color: var(--ink); }
+.order-card .total { font-weight: 800; color: var(--purple-ink); margin: 8px 0 0; }
+.order-card .actions, td .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.order-card .actions { margin-top: 10px; }
+.status-badge { padding: 2px 10px; border-radius: 999px; font-size: .72rem; font-weight: 700; }
+.status-new { background: var(--purple-soft); color: var(--purple-ink); }
+.status-confirmed, .status-preparing { background: var(--blue-soft); color: var(--blue); }
+.status-delivered { background: var(--wa-soft); color: var(--wa); }
+.status-cancelled { background: var(--pink-soft); color: var(--pink); }
