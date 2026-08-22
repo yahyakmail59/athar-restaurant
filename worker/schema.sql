@@ -27,6 +27,9 @@ CREATE TABLE IF NOT EXISTS restaurants (
                     CHECK (lifecycle_status IN ('active', 'suspended', 'archived')),
   is_active         INTEGER NOT NULL DEFAULT 1,
   seed_version      TEXT NOT NULL DEFAULT '',
+  -- أي هوية من بنك الهويات الأربع طُبِّقت عند الإنشاء. معلوماتية: الهوية
+  -- الفعلية بعد الإنشاء هي ما في `settings` وحدها، والمطعم يعدّلها بحرّية.
+  brand_kit_code    TEXT NOT NULL DEFAULT '',
   provisioned_at    INTEGER,
   created_at        INTEGER NOT NULL DEFAULT 0,
   updated_at        INTEGER NOT NULL DEFAULT 0
@@ -63,6 +66,10 @@ CREATE TABLE IF NOT EXISTS settings (
   surface_color TEXT NOT NULL DEFAULT '#111111',
   whatsapp_color TEXT NOT NULL DEFAULT '#25D366',
   theme TEXT NOT NULL DEFAULT 'dark' CHECK (theme IN ('dark', 'light')),
+  -- طبقة الثيم الإضافية فوق الأنماط الأساسية، كما في أضنة (`theme_css`):
+  -- تُحمَّل بعد الورقة الأساسية فلا تعدّلها، فقط تزيد عليها. القيم من
+  -- بنك الهويات الأربع في `brandkits.js`، أو فارغة للتصميم الافتراضي.
+  theme_layer TEXT NOT NULL DEFAULT '',
 
   -- الخطوط
   arabic_font TEXT NOT NULL DEFAULT 'Cairo',

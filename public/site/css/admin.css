@@ -1,0 +1,352 @@
+/* B12 skin for the Django admin.
+
+   Django's admin is built entirely on CSS custom properties and already
+   handles RTL and dark mode, so this file re-points those variables at the
+   same calm palette the customer dashboard uses, then adds a thin layer of
+   modern shaping (softer corners, quieter borders, roomier controls).
+   No admin markup is replaced, so Django upgrades stay safe. */
+
+@import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Cairo:wght@400;500;600;700&display=swap");
+
+html[data-theme="light"], :root {
+    --b12-canvas: #f6f3ed;
+    --b12-surface: #ffffff;
+    --b12-sunk: #f1ede5;
+    --b12-ink: #241f1b;
+    --b12-muted: #5c544b;
+    --b12-faint: #74695f;
+    --b12-line: #e4ded3;
+    --b12-line-strong: #d2cabc;
+    --b12-accent: #c0121d;
+    --b12-accent-soft: #fbeaea;
+    --b12-gold: #7d6212;
+    --b12-wa: #0f7a3d;
+
+    /* Django admin variables, re-pointed */
+    --primary: #2f2a24;
+    --secondary: #2f2a24;
+    --accent: var(--b12-gold);
+    --primary-fg: #f6f3ed;
+
+    --body-fg: var(--b12-ink);
+    --body-bg: var(--b12-canvas);
+    --body-quiet-color: var(--b12-muted);
+    --body-medium-color: var(--b12-muted);
+    --body-loud-color: var(--b12-ink);
+
+    --header-color: #e8e1d4;
+    --header-branding-color: #ffffff;
+    --header-bg: #2f2a24;
+    --header-link-color: #ffffff;
+
+    --breadcrumbs-fg: var(--b12-muted);
+    --breadcrumbs-link-fg: var(--b12-ink);
+    --breadcrumbs-bg: var(--b12-sunk);
+
+    --link-fg: #8a4a12;
+    --link-hover-color: var(--b12-accent);
+    --link-selected-fg: var(--b12-accent);
+
+    --hairline-color: var(--b12-line);
+    --border-color: var(--b12-line-strong);
+
+    --error-fg: var(--b12-accent);
+
+    --message-success-bg: #e6f4ea;
+    --message-warning-bg: #f7f0dc;
+    --message-error-bg: var(--b12-accent-soft);
+
+    --darkened-bg: var(--b12-sunk);
+    --selected-bg: var(--b12-sunk);
+    --selected-row: #f7f0dc;
+
+    --button-fg: #f6f3ed;
+    --button-bg: #3c352c;
+    --button-hover-bg: #241f1b;
+    --default-button-bg: var(--b12-accent);
+    --default-button-hover-bg: #9c0e17;
+    --close-button-bg: #8b8177;
+    --close-button-hover-bg: var(--b12-ink);
+    --delete-button-bg: var(--b12-accent);
+    --delete-button-hover-bg: #9c0e17;
+
+    --object-tools-fg: #f6f3ed;
+    --object-tools-bg: #3c352c;
+    --object-tools-hover-bg: var(--b12-ink);
+
+    --font-family-primary: "Cairo", system-ui, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --b12-canvas: #14120f;
+        --b12-surface: #1d1a16;
+        --b12-sunk: #232019;
+        --b12-ink: #f0eae0;
+        --b12-muted: #a79d8f;
+        --b12-faint: #8f8677;
+        --b12-line: #2e2a23;
+        --b12-line-strong: #3d382f;
+        --b12-accent: #f0736f;
+        --b12-accent-soft: #3a1e1c;
+        --b12-gold: #d9b44a;
+        --b12-wa: #5fca8a;
+
+        --primary: #2a251e;
+        --secondary: #2a251e;
+        --primary-fg: #f0eae0;
+        --header-bg: #1d1a16;
+        --header-color: #a79d8f;
+        --header-branding-color: #f0eae0;
+        --breadcrumbs-bg: #1d1a16;
+        --breadcrumbs-fg: #a79d8f;
+        --breadcrumbs-link-fg: #f0eae0;
+        --link-fg: #e0b878;
+        --link-hover-color: var(--b12-gold);
+        --link-selected-fg: var(--b12-gold);
+        --message-success-bg: #16301f;
+        --message-warning-bg: #362d17;
+        --message-error-bg: #3a1e1c;
+        --selected-row: #362d17;
+        --button-bg: #3d382f;
+        --button-hover-bg: #4c4539;
+        --close-button-bg: #3d382f;
+    }
+}
+
+html[data-theme="dark"] {
+    --b12-canvas: #14120f;
+    --b12-surface: #1d1a16;
+    --b12-sunk: #232019;
+    --b12-ink: #f0eae0;
+    --b12-muted: #a79d8f;
+    --b12-faint: #8f8677;
+    --b12-line: #2e2a23;
+    --b12-line-strong: #3d382f;
+    --b12-accent: #f0736f;
+    --b12-accent-soft: #3a1e1c;
+    --b12-gold: #d9b44a;
+    --b12-wa: #5fca8a;
+
+    --primary: #2a251e;
+    --secondary: #2a251e;
+    --primary-fg: #f0eae0;
+    --header-bg: #1d1a16;
+    --header-color: #a79d8f;
+    --header-branding-color: #f0eae0;
+    --breadcrumbs-bg: #1d1a16;
+    --breadcrumbs-fg: #a79d8f;
+    --breadcrumbs-link-fg: #f0eae0;
+    --link-fg: #e0b878;
+    --link-hover-color: var(--b12-gold);
+    --link-selected-fg: var(--b12-gold);
+    --message-success-bg: #16301f;
+    --message-warning-bg: #362d17;
+    --message-error-bg: #3a1e1c;
+    --selected-row: #362d17;
+    --button-bg: #3d382f;
+    --button-hover-bg: #4c4539;
+    --close-button-bg: #3d382f;
+}
+
+/* ── Shaping ───────────────────────────────────────────────────────────── */
+
+body {
+    font-family: "Cairo", system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.65;
+    font-variant-numeric: tabular-nums;
+}
+
+#header {
+    padding: 12px 28px;
+    border-bottom: 1px solid var(--b12-line);
+    box-shadow: none;
+}
+#branding h1 { font-weight: 700; font-size: 1.05rem; }
+#branding h1 a:link, #branding h1 a:visited { color: var(--header-branding-color); }
+
+div.breadcrumbs {
+    padding: 11px 28px;
+    border-bottom: 1px solid var(--b12-line);
+    font-size: .82rem;
+}
+
+#content { padding: 22px 28px 40px; }
+#content-main { max-width: 100%; }
+
+/* Panels: the admin's boxes become calm cards. */
+.module {
+    background: var(--b12-surface);
+    border: 1px solid var(--b12-line);
+    border-radius: 14px;
+    overflow: hidden;
+}
+.module caption,
+.module h2,
+.inline-group h2 {
+    background: var(--b12-sunk);
+    color: var(--b12-ink);
+    font-size: .84rem;
+    font-weight: 700;
+    letter-spacing: 0;
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--b12-line);
+    text-transform: none;
+}
+
+.dashboard #content { max-width: 100%; }
+
+/* Tables */
+#changelist table { border-radius: 12px; }
+thead th, thead th.sorted, thead th a:link, thead th a:visited {
+    background: var(--b12-sunk);
+    color: var(--b12-muted);
+    font-weight: 600;
+}
+#changelist-table tbody tr:hover > * { background: var(--b12-sunk); }
+td, th { padding: 10px 12px; border-bottom: 1px solid var(--b12-line); }
+
+/* Controls */
+input[type="text"], input[type="password"], input[type="email"], input[type="url"],
+input[type="number"], input[type="tel"], input[type="date"], input[type="time"],
+input[type="search"], textarea, select, .vTextField,
+#searchbar /* an ID in the admin's own CSS, so it needs naming here */ {
+    background: var(--b12-surface);
+    color: var(--b12-ink);
+    border: 1px solid var(--b12-line-strong);
+    border-radius: 9px;
+    padding: 8px 11px;
+    font-family: "Cairo", system-ui, sans-serif;
+}
+input:focus, textarea:focus, select:focus, .vTextField:focus {
+    outline: 2px solid var(--b12-accent);
+    outline-offset: 1px;
+    border-color: var(--b12-accent);
+}
+
+.button, input[type="submit"], input[type="button"],
+.submit-row input, a.button {
+    border-radius: 9px;
+    padding: 9px 15px;
+    font-weight: 600;
+    border: 0;
+}
+.submit-row { border-radius: 12px; background: var(--b12-sunk); border: 1px solid var(--b12-line); }
+.object-tools a { border-radius: 999px; font-weight: 600; text-transform: none; letter-spacing: 0; }
+
+/* Filters and sidebar */
+#changelist-filter {
+    background: var(--b12-surface);
+    border: 1px solid var(--b12-line);
+    border-radius: 14px;
+}
+#changelist-filter h2 { background: var(--b12-sunk); border-radius: 14px 14px 0 0; }
+#nav-sidebar { background: var(--b12-surface); border-inline-end: 1px solid var(--b12-line); }
+.toggle-nav-sidebar { border-inline-end: 1px solid var(--b12-line); }
+
+ul.messagelist li { border-radius: 10px; padding: 11px 16px 11px 44px; font-weight: 500; }
+.paginator { border-top: 1px solid var(--b12-line); padding: 12px 0; }
+.help, p.help, div.help, .helptext { color: var(--b12-faint); font-size: .78rem; }
+
+/* Link back to the customer dashboard, shown in the admin header. */
+.b12-desk-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-inline-start: 14px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    background: var(--b12-gold);
+    color: #241f1b;
+    font-size: .8rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+.b12-desk-link:hover { background: var(--b12-accent); color: #ffffff; }
+
+/* ── Modern index dashboard ────────────────────────────────────────────── */
+
+.b12-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+    margin-bottom: 24px;
+}
+.b12-stat {
+    background: var(--b12-surface);
+    border: 1px solid var(--b12-line);
+    border-radius: 14px;
+    padding: 15px 17px;
+    display: grid;
+    gap: 1px;
+    align-content: start;
+}
+.b12-stat .latin {
+    font-family: "Bebas Neue", sans-serif;
+    font-size: .68rem;
+    letter-spacing: .16em;
+    color: var(--b12-faint);
+}
+.b12-stat b { font-size: 1.9rem; font-weight: 700; line-height: 1.2; }
+.b12-stat span { font-size: .85rem; font-weight: 600; }
+.b12-stat small { font-size: .74rem; color: var(--b12-faint); }
+.b12-stat.is-urgent { border-color: var(--b12-accent); }
+.b12-stat.is-urgent b { color: var(--b12-accent); }
+.b12-stat a { color: var(--b12-accent); font-weight: 700; font-size: .76rem; }
+
+.b12-section-title {
+    font-size: .72rem;
+    font-family: "Bebas Neue", sans-serif;
+    letter-spacing: .18em;
+    color: var(--b12-faint);
+    margin: 0 0 10px;
+}
+
+.b12-apps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px;
+}
+.b12-app {
+    background: var(--b12-surface);
+    border: 1px solid var(--b12-line);
+    border-radius: 14px;
+    overflow: hidden;
+}
+.b12-app > h3 {
+    margin: 0;
+    padding: 12px 16px;
+    background: var(--b12-sunk);
+    border-bottom: 1px solid var(--b12-line);
+    font-size: .84rem;
+    font-weight: 700;
+}
+.b12-app ul { margin: 0; padding: 6px; list-style: none; }
+.b12-app li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 9px;
+}
+.b12-app li:hover { background: var(--b12-sunk); }
+.b12-app li > a { font-weight: 600; font-size: .87rem; color: var(--b12-ink); }
+.b12-app li > a:hover { color: var(--b12-accent); }
+.b12-app .row-actions { display: flex; gap: 6px; }
+.b12-app .row-actions a {
+    font-size: .74rem;
+    font-weight: 600;
+    color: var(--b12-muted);
+    border: 1px solid var(--b12-line-strong);
+    border-radius: 7px;
+    padding: 3px 9px;
+}
+.b12-app .row-actions a:hover { color: var(--b12-ink); border-color: var(--b12-ink); }
+
+@media (max-width: 767px) {
+    #content { padding: 16px 14px 32px; }
+    #header { padding: 10px 14px; }
+    div.breadcrumbs { padding: 10px 14px; }
+}

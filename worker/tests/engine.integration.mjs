@@ -190,9 +190,10 @@ await check('the home page is server rendered with seeded content', async () => 
   const page = await response.text();
   assert.ok(page.includes('مطعم أضنة'), 'restaurant name missing');
   assert.ok(page.includes('كباب أضنة'), 'featured item missing');
-  assert.ok(page.includes('على الفحم منذ ٢٠١٣'), 'tagline missing');
+  // العلامة النصية لا تظهر على الصفحة الرئيسية في أضنة أصلًا — تظهر فقط
+  // في صفحة الطلب المستقلة (مغطاة بفحص منفصل هناك).
   assert.ok(page.includes('dir="rtl"'), 'not RTL');
-  assert.ok(page.includes('--brand:#E30613'), 'brand colour not injected');
+  assert.ok(page.includes('--brand-red:#E30613'), 'brand colour not injected');
 });
 
 await check('the english page flips direction and language', async () => {
@@ -249,7 +250,10 @@ await check('a clean production tenant still serves a complete page', async () =
   // صاحبها فلا يعرف أين يكتب.
   assert.ok(page.includes('قائمة الطعام'), 'structural headings are empty');
   assert.ok(page.includes('اطلب الآن'), 'the call to action is empty');
-  assert.ok(!page.includes('undefined') && !page.includes('null'), 'a raw empty value leaked into the page');
+  // فحص نصّي لا سطري: `onload="this.onload=null"` في أضنة نفسه شرعي تمامًا،
+  // فالبحث عن `null` في كل الصفحة كان يصطدم بجافاسكربت لا بقيمة مسرَّبة.
+  assert.ok(!page.includes('>undefined<') && !page.includes('>null<'),
+    'a raw empty value leaked into rendered text');
 });
 
 await check('a clean production menu is empty but not broken', async () => {
@@ -285,10 +289,23 @@ await check('read seeded ids for the pricing tests', async () => {
   assert.ok(menuIds['كباب أضنة'], 'seed did not create the kebab');
 });
 
-const orderRequest = (body) => call('/r/adana-demo/api/orders', {
+/**
+ * يترجم شكل الاختبار المألوف (`customer_name`/`lines`) إلى عقد
+ * `site/js/main.js` الحرفي (`name`/`items[{id,qty,variant_id,addon_ids}]`)
+ * — التطابق مع main.js غير قابل للتفاوض لأنه غير معدَّل، فالاختبار يتكيّف.
+ */
+const orderRequest = ({ customer_name, phone, address, notes, fulfillment, lines }) => call('/r/adana-demo/order/', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify(body),
+  body: JSON.stringify({
+    name: customer_name, phone, address, notes, fulfillment,
+    items: (lines || []).map((line) => ({
+      id: line.item_id, qty: line.quantity,
+      ...(line.variant_id ? { variant_id: line.variant_id } : {}),
+      ...(line.addon_ids ? { addon_ids: line.addon_ids } : {}),
+      ...(line.unit_price_minor !== undefined ? { unit_price_minor: line.unit_price_minor } : {}),
+    })),
+  }),
 });
 
 let publicOrderToken;
@@ -308,7 +325,13 @@ await check('a valid public order is priced from the database', async () => {
   });
   const { status, body, text } = await read(response);
   assert.equal(status, 201, text);
-  publicOrderToken = body.token;
+  assert.ok(body.order_url, 'no order_url in the response');
+  // نسبيّ إلى /order/ لا إلى جذر الموقع كان يبني ".../order/o/TOKEN/" —
+  // عطل حقيقي ظهر فقط بتجربة طلب على الإنتاج، لأن هذا التعبير النمطي
+  // المتساهل كان يطابق الشكلين معًا فلا يكشفه.
+  assert.ok(!body.order_url.includes('/order/o/'), `order_url is nested under /order/: ${body.order_url}`);
+  assert.match(body.order_url, /\/r\/adana-demo\/o\/[a-z0-9]+\/$/, `unexpected order_url shape: ${body.order_url}`);
+  publicOrderToken = body.order_url.match(/\/o\/([a-z0-9]+)\//)[1];
 
   const stored = await db.prepare('SELECT total_minor FROM orders WHERE token = ?')
     .bind(publicOrderToken).first();
@@ -324,8 +347,9 @@ await check('a price sent by the browser is ignored', async () => {
   });
   const { status, body, text } = await read(response);
   assert.equal(status, 201, text);
+  const forgedToken = body.order_url.match(/\/o\/([a-z0-9]+)\//)[1];
   const stored = await db.prepare('SELECT total_minor FROM orders WHERE token = ?')
-    .bind(body.token).first();
+    .bind(forgedToken).first();
   assert.equal(Number(stored.total_minor), Number(kebab.price_minor),
     'the browser managed to set its own price');
 });
@@ -390,43 +414,62 @@ await check('delivery without an address is refused', async () => {
     customer_name: 'زبون', phone: '0599123456', fulfillment: 'delivery',
     lines: [{ item_id: kebab.id, quantity: 1 }],
   });
-  assert.equal(response.status, 422);
-  assert.equal((await response.json()).error, 'ADDRESS_REQUIRED');
+  assert.equal(response.status, 400);
+  assert.equal((await response.json()).error, 'BAD_REQUEST');
 });
 
-await check('an order without a phone number is refused', async () => {
+await check('pickup accepts no contact details at all, unlike delivery', async () => {
+  // أضنة تسمح باستلام من المطعم بلا اسم ولا هاتف — الاتصال إلزامي للتوصيل فقط.
   const kebab = menuIds['كباب أضنة'];
   const response = await orderRequest({
-    customer_name: 'زبون', phone: 'nope', fulfillment: 'pickup',
+    customer_name: '', phone: '', fulfillment: 'pickup',
     lines: [{ item_id: kebab.id, quantity: 1 }],
   });
-  assert.equal(response.status, 422);
+  assert.equal(response.status, 201, await response.text());
+});
+
+await check('a bad phone on a delivery order is refused', async () => {
+  const kebab = menuIds['كباب أضنة'];
+  const response = await orderRequest({
+    customer_name: 'زبون', phone: 'nope', address: 'شارع', fulfillment: 'delivery',
+    lines: [{ item_id: kebab.id, quantity: 1 }],
+  });
+  assert.equal(response.status, 400);
 });
 
 await check('the order page is reachable by its token and shows the code', async () => {
-  const page = await (await call(`/r/adana-demo/order/${publicOrderToken}`)).text();
+  const page = await (await call(`/r/adana-demo/o/${publicOrderToken}/`)).text();
   assert.ok(page.includes('كباب أضنة'), 'order line missing');
-  assert.ok(page.includes('استلمنا طلبك'), 'status missing');
+  assert.ok(page.includes('رقم الطلب'), 'order heading missing');
 });
 
 await check('a guessed token returns nothing', async () => {
-  const response = await call('/r/adana-demo/order/0123456789abcdef');
+  const response = await call('/r/adana-demo/o/0123456789abcdef/');
   assert.equal(response.status, 404);
 });
 
 /* ==================== 5. الحجوزات ==================== */
 
 let ipCounter = 0;
-const reserve = (body, ip) => call('/r/adana-demo/api/reservations', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    // عنوان مختلف لكل فحص: الحدّ يُحسب لكل عنوان، وبعنوان واحد كانت
-    // الفحوص السلبية تستهلك رصيد الفحص الذي يليها فيبدو عطلًا وهميًا.
-    'CF-Connecting-IP': ip || `10.0.0.${(ipCounter += 1)}`,
-  },
-  body: JSON.stringify(body),
-});
+/**
+ * الحجز نموذج HTML عادي بعد الترحيل عن أضنة، لا JSON: يعيد الخادم توجيهًا
+ * 303 دائمًا (نجح أو فشل) بمعامل `flash` في الوجهة، فالفحص يقرأ رأس
+ * `Location` بدل جسم الرد أو حالته.
+ */
+const reserve = async (fields, ip) => {
+  const response = await call('/r/adana-demo/reservation/', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      // عنوان مختلف لكل فحص: الحدّ يُحسب لكل عنوان، وبعنوان واحد كانت
+      // الفحوص السلبية تستهلك رصيد الفحص الذي يليها فيبدو عطلًا وهميًا.
+      'CF-Connecting-IP': ip || `10.0.0.${(ipCounter += 1)}`,
+    },
+    body: new URLSearchParams(fields).toString(),
+  });
+  const location = response.headers.get('Location') || '';
+  return { status: response.status, ok: location.includes('flash=ok_reservation'), location };
+};
 
 const tomorrow = new Date(Date.now() + 864e5).toISOString().slice(0, 10);
 
@@ -434,23 +477,22 @@ await check('a valid reservation is accepted', async () => {
   const response = await reserve({
     full_name: 'ضيف', phone: '0599123456', date: tomorrow, time: '19:00', guests: 4,
   });
-  assert.equal(response.status, 201, await response.text());
+  assert.equal(response.status, 303);
+  assert.ok(response.ok, response.location);
 });
 
 await check('a reservation outside opening hours is refused', async () => {
   const response = await reserve({
     full_name: 'ضيف', phone: '0599123456', date: tomorrow, time: '04:00', guests: 2,
   });
-  assert.equal(response.status, 422);
-  assert.equal((await response.json()).error, 'OUTSIDE_HOURS');
+  assert.ok(!response.ok, 'an out-of-hours reservation was accepted');
 });
 
 await check('a reservation in the past is refused', async () => {
   const response = await reserve({
     full_name: 'ضيف', phone: '0599123456', date: '2020-01-01', time: '19:00', guests: 2,
   });
-  assert.equal(response.status, 422);
-  assert.equal((await response.json()).error, 'DATE_IN_PAST');
+  assert.ok(!response.ok, 'a past-dated reservation was accepted');
 });
 
 await check('a full time slot is refused', async () => {
@@ -459,23 +501,24 @@ await check('a full time slot is refused', async () => {
     const filled = await reserve({
       full_name: `ضيف ${i}`, phone: '0599123456', date: tomorrow, time: '19:00', guests: 2,
     });
-    assert.equal(filled.status, 201, `filling the slot failed at ${i}`);
+    assert.ok(filled.ok, `filling the slot failed at ${i}: ${filled.location}`);
   }
   const response = await reserve({
     full_name: 'الخامس', phone: '0599123456', date: tomorrow, time: '19:00', guests: 2,
   });
-  assert.equal(response.status, 409);
-  assert.equal((await response.json()).error, 'SLOT_FULL');
+  assert.ok(!response.ok, 'a sixth reservation was accepted into a full slot');
 });
 
 await check('one address cannot flood the reservation form', async () => {
-  const ip = '198.51.100.7';
+  const ip = '198.51.100.8';
   let blocked = false;
   for (let i = 0; i < 12; i += 1) {
     const response = await reserve({
-      full_name: 'سيل', phone: '0599123456', date: tomorrow, time: '21:00', guests: 2,
+      // وقت مختلف كل مرة: طاقة الفترة أربعة فقط، فامتلاؤها كان يسبق الحدّ
+      // ويُخفي عمّا يُفحص هنا فعلًا — لا نريد SLOT_FULL بل الحدّ نفسه.
+      full_name: 'سيل', phone: '0599123456', date: tomorrow, time: `${21 + Math.floor(i / 2)}:${i % 2 ? '30' : '00'}`, guests: 2,
     }, ip);
-    if (response.status === 429) { blocked = true; break; }
+    if (response.location.includes('flash=rl_reservation')) { blocked = true; break; }
   }
   assert.ok(blocked, 'the public reservation form has no rate limit');
 });
@@ -540,6 +583,36 @@ await check('the restaurant cannot rename itself', async () => {
     .bind(demo.external_tenant_id).first();
   assert.equal(settings.name_ar, 'مطعم أضنة', 'the restaurant overwrote an Athar-owned field');
   assert.equal(settings.tagline_ar, 'شعار جديد', 'its own field was not saved');
+});
+
+await check('a font name outside the curated registry is refused', async () => {
+  const response = await authed('/api/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ arabic_font: 'Comic Sans MS' }),
+  });
+  assert.equal(response.status, 422);
+  assert.equal((await response.json()).error, 'INVALID_FONT');
+});
+
+await check('an icon key outside the curated set is refused', async () => {
+  const category = await db.prepare('SELECT id FROM categories WHERE restaurant_id = ? LIMIT 1')
+    .bind(demo.external_tenant_id).first();
+  const response = await authed(`/api/content/categories/${category.id}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ icon: 'not-a-real-icon-key' }),
+  });
+  assert.equal(response.status, 422);
+  assert.equal((await response.json()).error, 'INVALID_ICON');
+});
+
+await check('/api/meta exposes the same font and icon registries the server validates against', async () => {
+  const response = await call('/api/meta');
+  const { status, body } = await read(response);
+  assert.equal(status, 200);
+  assert.ok(body.fonts.arabic.some(([key]) => key === 'cairo'), 'cairo missing from the arabic font list');
+  assert.ok(body.icons.categories.some(([key]) => key === 'skewer'), 'skewer missing from the category icon list');
 });
 
 await check('an invalid colour is refused instead of landing in the stylesheet', async () => {
@@ -762,20 +835,29 @@ await check('downgrading to the menu plan reaches the engine', async () => {
   assert.equal(row.plan_code, 'menu');
 });
 
-await check('the menu plan cannot save orders, however the request is shaped', async () => {
+await check('the menu plan sends via WhatsApp instead of saving to the database', async () => {
+  // زر «إرسال» في main.js ينادي هذا المسار مهما كانت الباقة — رفضه بـ402
+  // يكسر الزر لعميل الباقة الأرخص. الفرق التجاري الحقيقي: لا يُكتب صف طلب.
+  const before = await db.prepare('SELECT COUNT(*) AS count FROM orders WHERE restaurant_id = ?')
+    .bind(demo.external_tenant_id).first();
   const response = await orderRequest({
     customer_name: 'زبون', phone: '0599123456', fulfillment: 'pickup',
     lines: [{ item_id: createdItemId, quantity: 1 }],
   });
-  assert.equal(response.status, 402);
-  assert.equal((await response.json()).error, 'PLAN_REQUIRED');
+  const { status, body, text } = await read(response);
+  assert.equal(status, 201, text);
+  assert.equal(body.order_url, '', 'the menu plan should not produce an order page');
+  const after = await db.prepare('SELECT COUNT(*) AS count FROM orders WHERE restaurant_id = ?')
+    .bind(demo.external_tenant_id).first();
+  assert.equal(Number(after.count), Number(before.count), 'the menu plan wrote an order row anyway');
 });
 
 await check('the menu plan cannot take reservations', async () => {
   const response = await reserve({
     full_name: 'ضيف', phone: '0599123456', date: tomorrow, time: '20:00', guests: 2,
   });
-  assert.equal(response.status, 402);
+  assert.equal(response.status, 303);
+  assert.ok(!response.ok, 'a reservation was accepted on the menu plan');
 });
 
 await check('the menu plan cannot reach the cashier or the dashboard', async () => {
@@ -885,6 +967,57 @@ await check('the owner changes their own password and keeps working', async () =
 
   // الجهاز الذي أجرى التغيير يبقى داخلًا: إخراج الجميع يوحي بأن التغيير فشل.
   assert.equal((await authed('/api/me')).status, 200, 'the owner was logged out of their own session');
+});
+
+/* ==================== 12ب. الهوية والأيقونات ==================== */
+
+await check('a chosen brand kit reaches the public page, not the classic default', async () => {
+  const response = await adapter('POST', '/internal/v1/tenants', {
+    tenant_id: 'ten_luxury', slug: 'luxury-resto', display_name: 'مطعم فاخر',
+    environment: 'production', plan_code: 'full', admin_username: 'owner',
+    brand_kit_code: 'restaurant:luxury_navy',
+  });
+  const created = await read(response);
+  assert.equal(created.status, 201, created.text);
+  const page = await (await call(`/r/luxury-resto/`)).text();
+  assert.ok(page.includes('--brand-red:#0B1D2D'), 'the luxury kit colour did not reach settings');
+  assert.ok(page.includes('themes/luxury.css'), 'the luxury theme layer was not linked');
+  assert.ok(!page.includes('--brand-red:#E30613'), 'the classic default leaked over a chosen kit');
+});
+
+await check('an unknown brand kit code falls back safely instead of failing provisioning', async () => {
+  const response = await adapter('POST', '/internal/v1/tenants', {
+    tenant_id: 'ten_badkit', slug: 'badkit-resto', display_name: 'مطعم',
+    environment: 'production', plan_code: 'menu', admin_username: 'owner',
+    brand_kit_code: 'restaurant:does-not-exist',
+  });
+  const created = await read(response);
+  assert.equal(created.status, 201, created.text);
+});
+
+await check('menu category and service icons render as known lucide names, not raw emoji', async () => {
+  const page = await (await call('/r/adana-demo/menu/')).text();
+  assert.ok(page.includes('data-lucide="flame"'), 'the grill category icon did not translate');
+  assert.ok(!page.includes('🔥') && !page.includes('🥙'), 'a raw emoji leaked instead of a semantic icon key');
+});
+
+await check('a cart entry for an offer is priced and recorded as its own order line', async () => {
+  const offerRow = await db.prepare(
+    "SELECT id, price_minor FROM offers WHERE restaurant_id = ? AND is_priced = 1 LIMIT 1",
+  ).bind(demo.external_tenant_id).first();
+  assert.ok(offerRow, 'no priced offer in the demo seed to test with');
+  const response = await orderRequest({
+    customer_name: 'زبون عرض', phone: '0599123456', fulfillment: 'pickup',
+    lines: [{ item_id: `offer-${offerRow.id}`, quantity: 1 }],
+  });
+  const { status, body, text } = await read(response);
+  assert.equal(status, 201, text);
+  const token = body.order_url.match(/\/o\/([a-z0-9]+)\//)[1];
+  const line = await db.prepare(
+    'SELECT offer_id, unit_price_minor FROM order_lines WHERE order_id = (SELECT id FROM orders WHERE token = ?)',
+  ).bind(token).first();
+  assert.equal(line.offer_id, offerRow.id, 'the offer line was not linked to the offer row');
+  assert.equal(Number(line.unit_price_minor), Number(offerRow.price_minor), 'the offer was not priced from the database');
 });
 
 /* ==================== 13. الحذف النهائي ==================== */

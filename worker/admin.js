@@ -7,13 +7,17 @@
 
 import {
   HttpError, PBKDF2_ITER, SESSION_TTL_MS, checkLock, clearFails, derivePassword,
-  json, newSalt, newToken, noteFail, num, readJson, safeColor, safeFont, safeEqual,
+  json, newSalt, newToken, noteFail, num, readJson, safeColor, safeEqual,
   sha256b64, str,
 } from './lib.js';
 import {
   ATHAR_OWNED_SETTINGS, ROLES, canWriteSection, isKnownSection, planAllows, stripAtharOwned,
 } from './access.js';
 import { createOrder } from './orders.js';
+import {
+  ARABIC_FONTS, ARABIC_DISPLAY_FONTS, DISPLAY_FONTS, LATIN_FONTS,
+} from './fonts.js';
+import { HERO_STAT_ICONS, CATEGORY_ICONS, SERVICE_ICONS } from './icons.js';
 
 /* ==================== الجلسات ==================== */
 
@@ -149,7 +153,15 @@ let settingsColumnCache = null;
 const DENIED_SETTINGS = new Set(['restaurant_id', 'updated_at', ...ATHAR_OWNED_SETTINGS]);
 
 const COLOR_FIELDS = new Set(['primary_color', 'gold_color', 'background_color', 'surface_color', 'whatsapp_color']);
-const FONT_FIELDS = new Set(['arabic_font', 'arabic_display_font', 'display_font', 'latin_font']);
+// كل خانة خط تتحقق من سجلها الخاص في `fonts.js` — لا نص حر. اسم خط غير
+// موجود في السجل لا يكسر شيئًا بنفسه (تسقط الصفحة على الافتراضي)، لكنه
+// يعني أن المطعم اختار من قائمة لا وجود لها فعلًا، وهذا ما يمنعه التحقق هنا.
+const FONT_FIELDS = {
+  arabic_font: ARABIC_FONTS, arabic_display_font: ARABIC_DISPLAY_FONTS,
+  display_font: DISPLAY_FONTS, latin_font: LATIN_FONTS,
+};
+// الأيقونات الرمزية للأقسام والخدمات وأرقام الواجهة، من `icons.js` حصرًا.
+const ICON_FIELD_TABLES = { hero_stats: HERO_STAT_ICONS, categories: CATEGORY_ICONS, services: SERVICE_ICONS };
 const INT_FIELDS = new Set([
   'show_about', 'show_categories', 'show_featured', 'show_offers', 'show_services',
   'show_reviews', 'show_reservation', 'show_faq', 'show_social',
@@ -182,11 +194,20 @@ export async function updateSettings(request, env, session) {
     if (COLOR_FIELDS.has(key)) {
       value = safeColor(raw, '');
       if (!value) throw new HttpError(422, 'INVALID_COLOR', `اللون غير صالح: ${key}`);
-    } else if (FONT_FIELDS.has(key)) {
-      value = safeFont(raw, '');
-      if (!value) throw new HttpError(422, 'INVALID_FONT', `اسم الخط غير صالح: ${key}`);
+    } else if (FONT_FIELDS[key]) {
+      value = str(raw, 40);
+      if (!Object.hasOwn(FONT_FIELDS[key], value)) {
+        throw new HttpError(422, 'INVALID_FONT', `اختر خطًّا من القائمة: ${key}`);
+      }
     } else if (key === 'theme') {
       value = raw === 'light' ? 'light' : 'dark';
+    } else if (key === 'theme_layer') {
+      // طبقة واحدة موجودة فعلًا (`luxury`). قيمة أخرى تشير إلى ملف CSS غير
+      // مبنيّ بعد، فتُرفض بدل أن تُحقن رابطًا لا يردّ عليه شيء.
+      value = str(raw, 20);
+      if (value && value !== 'luxury') {
+        throw new HttpError(422, 'INVALID_THEME_LAYER', 'طبقة الثيم غير متاحة.');
+      }
     } else if (key === 'reservation_open_time' || key === 'reservation_close_time') {
       value = str(raw, 5);
       if (!/^\d{2}:\d{2}$/.test(value)) throw new HttpError(422, 'INVALID_TIME', 'الوقت بصيغة HH:MM.');
@@ -290,6 +311,16 @@ export async function saveContent(request, env, session, section, idFromPath) {
   const values = {};
   for (const column of config.columns) {
     if (!Object.hasOwn(body, column)) continue;
+    if (column === 'icon' && ICON_FIELD_TABLES[section]) {
+      // أيقونة رمزية من `icons.js` لا نص حر: قيمة مجهولة تسقط بأمان عند
+      // العرض، فيبدو القسم بلا أيقونة مميّزة بلا سبب ظاهر لمن اختارها.
+      const value = str(body.icon, 20);
+      if (value && !Object.hasOwn(ICON_FIELD_TABLES[section], value)) {
+        throw new HttpError(422, 'INVALID_ICON', 'اختر أيقونة من القائمة.');
+      }
+      values.icon = value;
+      continue;
+    }
     values[column] = CONTENT_INT_FIELDS.has(column)
       ? Math.max(0, num(body[column]))
       : str(body[column], 2000);

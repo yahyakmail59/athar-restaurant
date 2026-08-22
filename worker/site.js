@@ -55,12 +55,18 @@ export async function loadSite(env, restaurantId) {
   };
   const variantMap = byItem(variants);
   const addonMap = byItem(addons);
+  const categoryById = new Map(categories.results.map((row) => [row.id, row]));
 
-  const menuItems = items.results.map((item) => ({
-    ...item,
-    variants: variantMap.get(item.id) || [],
-    addons: addonMap.get(item.id) || [],
-  }));
+  const menuItems = items.results.map((item) => {
+    const category = categoryById.get(item.category_id);
+    return {
+      ...item,
+      category_slug: category?.slug || '',
+      category_icon: category?.icon || '',
+      variants: variantMap.get(item.id) || [],
+      addons: addonMap.get(item.id) || [],
+    };
+  });
 
   return {
     settings: settings.results[0] || null,
@@ -73,4 +79,28 @@ export async function loadSite(env, restaurantId) {
     faqs: faqs.results,
     socialPosts: socialPosts.results,
   };
+}
+
+/**
+ * الأكثر طلبًا: الأصناف الثمانية الأعلى مبيعًا خلال آخر ٩٠ يومًا، محسوبة من
+ * طلبات فعلية غير ملغاة — لا رقم يختاره أحد يدويًا. `online`/`cashier` مفصولان
+ * لأن أضنة يعرضهما منفصلين تحت كل صنف («٤٢ أونلاين · ١٨ داخل المطعم»).
+ */
+export async function loadBestSellers(env, restaurantId, limit = 8) {
+  const since = Date.now() - 90 * 864e5;
+  const rows = await env.DB.prepare(
+    `SELECT l.menu_item_id AS id, l.name_ar, l.name_en, MIN(l.unit_price_minor) AS price_minor,
+            m.image_url, SUM(l.quantity) AS order_count,
+            SUM(CASE WHEN o.source = 'online' THEN l.quantity ELSE 0 END) AS online_order_count,
+            SUM(CASE WHEN o.source = 'cashier' THEN l.quantity ELSE 0 END) AS cashier_order_count
+     FROM order_lines l
+     JOIN orders o ON o.id = l.order_id
+     LEFT JOIN menu_items m ON m.id = l.menu_item_id
+     WHERE l.restaurant_id = ? AND l.menu_item_id IS NOT NULL
+       AND o.status <> 'cancelled' AND o.created_at >= ?
+     GROUP BY l.menu_item_id
+     ORDER BY order_count DESC
+     LIMIT ?`,
+  ).bind(restaurantId, since, limit).all();
+  return rows.results;
 }

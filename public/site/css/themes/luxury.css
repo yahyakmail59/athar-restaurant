@@ -1,0 +1,409 @@
+/* ============================================================
+   LUXURY THEME LAYER
+   Loaded *after* style.css (see base.html) as an override-only layer.
+   Opt-in per restaurant via RestaurantSettings.theme = "luxury".
+   The base "hot grill" design stays the default; this file never edits it.
+
+   Brand-driven: consumes --brand-gold(-rgb) / --brand-red(-rgb) /
+   --page-bg / --display / --arabic-display. No restaurant data hardcoded.
+
+   Scope of this pass: page canvas · header · hero.
+   (Sections, cards, footer refined in later passes.)
+   ============================================================ */
+
+:root {
+    --lux-hairline: rgba(var(--brand-gold-rgb), .28);
+    --lux-hairline-strong: rgba(var(--brand-gold-rgb), .55);
+    --lux-ink-soft: rgba(255, 255, 255, .68);
+    --lux-ink-faint: rgba(255, 255, 255, .45);
+    --lux-navy-rgb: 11, 29, 45;              /* falls back with --page-bg */
+    --lux-ease: cubic-bezier(.22, .61, .36, 1);
+    --lux-radius: 3px;
+}
+
+/* Calmer canvas: replace the warm ember glow with a faint gold vignette. */
+body {
+    background:
+        radial-gradient(120% 78% at 50% -12%, rgba(var(--brand-gold-rgb), .07), transparent 62%),
+        var(--page-bg);
+}
+
+/* ---------- Header ---------- */
+.site-header {
+    background: linear-gradient(180deg, rgba(0, 0, 0, .70), rgba(0, 0, 0, .28) 62%, transparent);
+}
+.site-header.scrolled {
+    background: color-mix(in srgb, var(--page-bg) 90%, black);
+    border-bottom: 1px solid var(--lux-hairline);
+    box-shadow: 0 12px 44px rgba(0, 0, 0, .5);
+}
+.brand img { filter: none; }
+.brand-wordmark { letter-spacing: .06em; font-weight: 600; }
+
+/* Navigation: gold hairline underline, generous tracking on the sub-label. */
+.main-nav a b { font-weight: 600; letter-spacing: .01em; }
+.main-nav a small { letter-spacing: .18em; text-transform: uppercase; color: var(--lux-ink-faint); }
+.main-nav a::after {
+    height: 1px; left: 12%; right: 12%; bottom: 6px;
+    background: var(--brand-gold); transition: transform .3s var(--lux-ease);
+}
+.main-nav a.active b, .main-nav a:hover b { color: var(--brand-gold); }
+.language-switch a.active, .language-switch a:hover { color: var(--brand-gold); }
+
+/* Order button: quiet gold-outlined pill, not a filled block. */
+.header-whatsapp {
+    background: rgba(var(--brand-gold-rgb), .04);
+    border: 1px solid var(--lux-hairline-strong);
+    color: var(--brand-gold);
+    box-shadow: none;
+    transition: border-color .3s var(--lux-ease), background .3s var(--lux-ease);
+}
+.header-whatsapp:hover { border-color: var(--brand-gold); background: rgba(var(--brand-gold-rgb), .1); }
+.header-whatsapp > svg { color: var(--brand-gold); }
+
+/* ---------- Hero ---------- */
+/* Luxury is calm — remove the drifting embers entirely. */
+.hero-embers { display: none !important; }
+
+.hero {
+    min-height: 768px;
+    border-bottom: 1px solid var(--lux-hairline);
+}
+/* Let the photograph breathe: gentler filter, no forced zoom. */
+.hero-media img {
+    filter: contrast(1.02) saturate(1) brightness(.9);
+    transform: none;
+}
+/* Cinematic navy-floored shade instead of a hard black wash. */
+.hero-shade {
+    background:
+        linear-gradient(90deg,
+            rgba(var(--lux-navy-rgb), .97) 0%,
+            rgba(var(--lux-navy-rgb), .82) 30%,
+            rgba(var(--lux-navy-rgb), .32) 62%,
+            rgba(var(--lux-navy-rgb), .05) 100%),
+        linear-gradient(180deg,
+            rgba(var(--lux-navy-rgb), .45) 0%,
+            transparent 32%, transparent 66%,
+            rgba(var(--lux-navy-rgb), .97) 100%);
+}
+
+.hero-copy { padding: 74px 0 52px; }
+/* Main headline (Arabic display face): open it up, drop the aggressive squeeze. */
+.hero-copy h1 {
+    font-weight: 700;
+    letter-spacing: 0;
+    line-height: 1.14;
+    text-shadow: 0 6px 30px rgba(0, 0, 0, .55);
+}
+/* Latin line (Playfair): an elegant spaced eyebrow in gold, not a shout. */
+.hero-title-en {
+    color: var(--brand-gold);
+    font-weight: 500;
+    letter-spacing: .14em;
+    font-size: clamp(1.7rem, 3vw, 2.9rem);
+    line-height: 1.2;
+    margin-bottom: 28px;
+    opacity: .96;
+}
+.hero-ar, .hero-en { color: rgba(255, 255, 255, .74); font-size: 1rem; line-height: 1.95; max-width: 460px; letter-spacing: .004em; }
+
+/* Actions: a solid gold primary + a quiet glass secondary. */
+.hero-actions { gap: 16px; margin-top: 30px; }
+.hero-actions .btn { min-height: 56px; border-radius: 10px; letter-spacing: .03em; }
+.hero-actions .btn b { font-size: .8rem; font-weight: 600; }
+.hero-actions .btn-red {
+    background: var(--brand-gold);
+    color: var(--page-bg);
+    box-shadow: 0 14px 42px rgba(var(--brand-gold-rgb), .24);
+}
+.hero-actions .btn-red:hover { background: color-mix(in srgb, var(--brand-gold) 90%, white); }
+.hero-actions .btn-red svg { color: var(--page-bg); }
+.hero-actions .btn-dark {
+    background: rgba(var(--lux-navy-rgb), .5);
+    border-color: var(--lux-hairline-strong);
+    backdrop-filter: blur(10px);
+}
+.hero-actions .btn-dark:hover { border-color: var(--brand-gold); }
+
+/* Feature strip: hairline gold rules, uppercase tracked sub-labels. */
+.hero-features {
+    background: rgba(var(--lux-navy-rgb), .5);
+    border-top: 1px solid var(--lux-hairline);
+    border-bottom: 1px solid var(--lux-hairline);
+    backdrop-filter: blur(10px);
+}
+.hero-feature { padding: 20px 8px; gap: 16px; }
+/* Faded gold hairline between features, not a hard short rule. */
+.hero-feature:not(:last-child)::after {
+    height: 58%;
+    background: linear-gradient(180deg, transparent, var(--lux-hairline-strong), transparent);
+}
+/* Each icon sits inside a thin gold medallion — a quiet "seal of quality". */
+.hero-feature > svg {
+    width: 50px; height: 50px;
+    padding: 11px;
+    border: 1px solid rgba(var(--brand-gold-rgb), .4);
+    border-radius: 50%;
+    color: var(--brand-gold);
+    stroke-width: 1.2;
+}
+/* Larger Arabic label leads, with more air between the two lines. */
+.hero-feature span { row-gap: 6px; }
+.hero-feature b { font-size: 1.05rem; font-weight: 600; letter-spacing: .01em; }
+/* Sub-labels join the gold system with generous tracking. */
+.hero-feature small {
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    color: rgba(var(--brand-gold-rgb), .6);
+}
+/* Keep the desktop-scale hero values from leaking onto small screens. */
+@media (max-width: 820px) {
+    .hero { min-height: 640px; }
+    .hero-copy { padding: 44px 0 32px; }
+}
+@media (max-width: 560px) {
+    .hero-copy { padding: 34px 0 28px; }
+    .hero-feature { padding: 14px 6px; gap: 10px; }
+    .hero-feature > svg { width: 42px; height: 42px; padding: 9px; }
+    .hero-feature b { font-size: .9rem; }
+}
+
+/* ---------- Section titles ---------- */
+.section-title { padding-bottom: 18px; margin-bottom: 26px; }
+.section-title h2 {
+    font-size: clamp(1.55rem, 2.4vw, 2rem);
+    line-height: 1.2;
+    letter-spacing: 0;
+}
+/* Latin sub-title: an elegant gold Playfair line, not a red shout. */
+.section-title p {
+    font-size: 1.05rem;
+    color: var(--brand-gold);
+    letter-spacing: .12em;
+    opacity: .92;
+    margin-top: 7px;
+}
+
+/* The red skewed streak becomes a centered gold hairline with a small diamond. */
+.red-streak {
+    position: absolute;
+    left: 50%; bottom: 2px;
+    transform: translateX(-50%);
+    width: 96px; height: 8px;
+    opacity: 1;
+}
+.red-streak::before, .red-streak::after { transform: none; }
+.red-streak::before {
+    top: 50%; left: 0; right: 0; height: 1px; bottom: auto;
+    background: linear-gradient(90deg, transparent, rgba(var(--brand-gold-rgb), .75), transparent);
+}
+.red-streak::after {
+    top: 50%; left: 50%; right: auto;
+    width: 6px; height: 6px; margin: 0;
+    background: var(--brand-gold);
+    transform: translate(-50%, -50%) rotate(45deg);
+}
+
+@media (max-width: 560px) {
+    .red-streak { display: block; width: 76px; }
+    .section-title { padding-bottom: 14px; margin-bottom: 18px; }
+    .section-title h2 { font-size: 1.36rem; }
+    .section-title p { font-size: .95rem; }
+}
+
+/* ---------- Cards: category · menu · offer ---------- */
+:root {
+    --lux-card-radius: 10px;
+    --lux-border: rgba(var(--brand-gold-rgb), .2);
+    --lux-card-shadow: 0 18px 48px rgba(var(--lux-navy-rgb), .55);
+}
+
+/* Softer hairline by default, gold only on hover; calm imagery; restrained lift. */
+.category-card, .menu-card, .offer-card {
+    border-radius: var(--lux-card-radius);
+    border-color: var(--lux-border);
+    background: var(--surface);
+}
+.category-card img, .menu-image img, .offer-card img {
+    filter: contrast(1.02) saturate(1.02) brightness(.92);
+    transform: none;
+}
+.category-card:hover, .category-card.active,
+.menu-card:hover, .offer-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--brand-gold);
+    box-shadow: var(--lux-card-shadow);
+}
+.category-card:hover img,
+.menu-card:hover .menu-image img,
+.offer-card:hover img { transform: scale(1.04); }
+
+/* Menu section sits on a navy wash, not the inherited near-black band. */
+.menu-section {
+    background: linear-gradient(180deg, var(--page-bg), color-mix(in srgb, var(--page-bg) 82%, black));
+}
+
+/* Menu card: gold price, a quiet gold-framed badge, no red. */
+.menu-bottom strong { color: var(--brand-gold); }
+.dish-badge {
+    background: rgba(var(--lux-navy-rgb), .78);
+    border: 1px solid rgba(var(--brand-gold-rgb), .65);
+    border-radius: 6px;
+    color: var(--brand-gold);
+    font-weight: 700;
+    letter-spacing: .04em;
+    backdrop-filter: blur(4px);
+}
+
+/* Offer card: gold sub-line and a gold-framed price instead of red. */
+.offer-copy h4 { color: var(--brand-gold); }
+.offer-copy strong {
+    border-color: rgba(var(--brand-gold-rgb), .5);
+    background: rgba(var(--brand-gold-rgb), .1);
+    color: var(--brand-gold);
+}
+
+/* Category active pill on mobile: navy/gold tint, not the inherited brown. */
+@media (max-width: 560px) {
+    .category-card.active { background: rgba(var(--brand-gold-rgb), .12); }
+}
+
+/* ---------- Reservation · contact ---------- */
+.reservation-box { border-color: var(--lux-border); }
+.reservation-form, .contact-card, .whatsapp-panel {
+    border-color: var(--lux-border);
+    border-radius: var(--lux-card-radius);
+}
+/* Fields sit on a navy tint with gold hairlines and a gold focus ring. */
+input, textarea {
+    background: rgba(var(--lux-navy-rgb), .5);
+    border: 1px solid var(--lux-border);
+    border-radius: 8px;
+}
+input:focus, textarea:focus {
+    border-color: var(--brand-gold);
+    box-shadow: 0 0 0 3px rgba(var(--brand-gold-rgb), .12);
+}
+/* Book button matches the hero CTA: solid gold on navy ink. */
+.book-btn {
+    background: var(--brand-gold);
+    color: var(--page-bg);
+    border-radius: 10px;
+}
+.book-btn:hover { background: color-mix(in srgb, var(--brand-gold) 90%, white); }
+
+/* ---------- Remaining red accents → gold (services · faq · reviews · social) ---------- */
+.services-section .page-shell,
+.faq-section .page-shell { border-color: var(--lux-border); }
+.faq-item button svg { color: var(--brand-gold); }
+.review-dots span.active { background: var(--brand-gold); }
+.social-title b { color: var(--brand-gold); }
+
+/* ---------- Footer ---------- */
+.social-section { border-bottom: 0; }
+.site-footer {
+    background: color-mix(in srgb, var(--page-bg) 82%, black);
+    border-top: 1px solid var(--lux-border);
+}
+.site-footer h3 { color: var(--brand-gold); }
+.footer-socials a, .footer-socials button {
+    border-color: var(--lux-border);
+    transition: border-color .3s var(--lux-ease), color .3s var(--lux-ease);
+}
+.footer-socials a:hover, .footer-socials button:hover {
+    border-color: var(--brand-gold);
+    color: var(--brand-gold);
+}
+.site-footer a:hover { color: var(--brand-gold); }
+
+/* ---------- Order drawer (cart) ----------
+   The base drawer is unstyled by this theme: #0b0b0b panels, white-line
+   borders, and every accent still on var(--brand-red) — a name kept for
+   compatibility that now holds whatever colour the owner picked, gold for
+   Adana. Text and small badges built on it already read gold; what was
+   missing was the drawer's own surface and border language. */
+.floating-whatsapp {
+    border-color: var(--brand-gold);
+    box-shadow: 0 12px 32px rgba(var(--lux-navy-rgb), .55);
+}
+.sticky-cart-bar {
+    background: rgba(var(--lux-navy-rgb), .82);
+    border-top-color: var(--lux-hairline);
+    box-shadow: 0 -10px 26px rgba(var(--lux-navy-rgb), .55);
+}
+.sticky-cart-icon { background: rgba(var(--brand-gold-rgb), .14); color: var(--brand-gold); }
+.sticky-cart-total { color: var(--brand-gold); }
+.drawer-backdrop { background: rgba(var(--lux-navy-rgb), .82); }
+.drawer-panel {
+    background: color-mix(in srgb, var(--page-bg) 88%, black);
+    border-left: 1px solid var(--lux-border);
+}
+html[dir="ltr"] .drawer-panel { border-right: 1px solid var(--lux-border); border-left: 0; }
+.drawer-head { border-bottom-color: var(--lux-border); }
+.icon-btn, .qty-control button {
+    border-color: var(--lux-border);
+    background: rgba(var(--lux-navy-rgb), .6);
+    transition: border-color .3s var(--lux-ease), color .3s var(--lux-ease);
+}
+.icon-btn:hover, .qty-control button:hover { border-color: var(--brand-gold); color: var(--brand-gold); }
+.cart-item {
+    border-color: var(--lux-border);
+    border-radius: var(--lux-card-radius);
+    background: rgba(var(--lux-navy-rgb), .35);
+}
+.drawer-upsell { border-top-color: var(--lux-border); }
+.upsell-item {
+    border-color: var(--lux-border);
+    background: rgba(var(--lux-navy-rgb), .35);
+    border-radius: 20px;
+}
+.upsell-item:hover { border-color: var(--brand-gold); }
+.upsell-price { color: var(--brand-gold); }
+.drawer-summary { border-top-color: var(--lux-border); }
+.fulfillment-options label span { border-color: var(--lux-border); background: rgba(var(--lux-navy-rgb), .5); }
+.fulfillment-options input:focus-visible + span { outline-color: var(--brand-gold); }
+.clear-cart-btn:hover { border-color: var(--brand-gold); }
+
+/* ---------- Dish detail dialog ----------
+   Same navy/gold surface language as the order drawer above, sharper
+   corners (--lux-radius) to read as a quick, premium glance rather than
+   the drawer's full commitment to an order. */
+.dish-dialog-backdrop { background: rgba(var(--lux-navy-rgb), .82); }
+.dish-dialog-panel {
+    background: color-mix(in srgb, var(--page-bg) 88%, black);
+    border-color: var(--lux-border);
+    border-radius: calc(var(--lux-card-radius) - 4px);
+}
+@media (max-width: 820px) {
+    .dish-dialog-panel { border-radius: calc(var(--lux-card-radius) + 6px) calc(var(--lux-card-radius) + 6px) 0 0; }
+}
+.dish-dialog-image img { filter: contrast(1.02) saturate(1.02) brightness(.92); }
+.dish-dialog-bottom { border-top-color: var(--lux-border); }
+.dish-dialog-bottom strong { color: var(--brand-gold); }
+
+/* ---------- Per-dish order button ----------
+   The base button scales up and tilts -5deg on hover — a playful wobble that
+   reads as fast food, and looks worse on .featured-order-btn (a wide pill,
+   not a circle, so the same rotation skews it rather than reads as a bounce).
+   Luxury swaps it for a restrained lift with a thin gold ring, matching the
+   hover language used on cards elsewhere in this theme. */
+.mini-whatsapp {
+    transition: transform .3s var(--lux-ease), box-shadow .3s var(--lux-ease);
+}
+.mini-whatsapp:hover, .mini-whatsapp.added {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 22px rgba(var(--brand-gold-rgb), .35), 0 0 0 3px rgba(var(--brand-gold-rgb), .22);
+}
+
+/* ---------- Placeholder for dishes/offers without a photo yet ----------
+   The base sheet fills an empty .menu-image/.offer-card with flat near-black
+   (#050505 / #111), which reads as a broken image rather than an unfinished
+   one. A dish's own <img> — 100% width/height, object-fit: cover — paints
+   over this completely when present, so the pattern only ever shows through
+   on cards still waiting for their photo. */
+.menu-image, .offer-card {
+    background:
+        linear-gradient(rgba(var(--lux-navy-rgb), .82), rgba(var(--lux-navy-rgb), .82)),
+        url('/site/img/adana/pattern-navy-gold.webp') center / 240px repeat;
+}

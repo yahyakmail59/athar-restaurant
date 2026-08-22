@@ -12,6 +12,7 @@ import {
   readBoundedBody, safeEqual, sha256Hex, str,
 } from './lib.js';
 import { demoSeedStatements, DEMO_SEED_VERSION, defaultContentStatements } from './seed.js';
+import { resolveBrandKit } from './brandkits.js';
 
 export async function verifyAdapterRequest(request, env) {
   const secret = env.ATHAR_ADAPTER_SECRET;
@@ -171,6 +172,11 @@ async function provision(env, signed) {
   if (!environment) throw new HttpError(422, 'INVALID_ENVIRONMENT', 'Environment must be demo or production.');
   const planCode = planCodeOf(adapterRequired(body.plan_code, 'INVALID_PLAN_CODE', 80));
   const config = body.config && typeof body.config === 'object' && !Array.isArray(body.config) ? body.config : {};
+  // `brand_kit_code` يصل من اللوحة بالشكل `restaurant:adana_classic` (معرّف
+  // صف `brand_kits`) أو بالرمز المجرَّد. رمز غير معروف يسقط بأمان على
+  // الهوية الافتراضية — لا يوقف الإنشاء لخطأ تجميلي.
+  const brandKitCode = str(body.brand_kit_code, 80).split(':').pop();
+  const brandKit = resolveBrandKit(brandKitCode);
   const ownerUsername = str(body.admin_username, 60).trim().toLowerCase() || 'owner';
   if (!/^[a-z0-9._-]{3,40}$/.test(ownerUsername)) {
     throw new HttpError(422, 'INVALID_ADMIN_USERNAME',
@@ -217,11 +223,11 @@ async function provision(env, signed) {
       db.prepare(
         `INSERT INTO restaurants
          (restaurant_id, control_tenant_id, slug, name, environment, plan_code, trial_expires_at,
-          lifecycle_status, is_active, seed_version, provisioned_at, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 'active', 1, ?, ?, ?, ?)`,
+          lifecycle_status, is_active, seed_version, brand_kit_code, provisioned_at, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'active', 1, ?, ?, ?, ?, ?)`,
       ).bind(
         restaurantId, tenantId, publicSlug, displayName, environment, planCode,
-        body.trial_expires_at || null, seedVersion, now, now, now,
+        body.trial_expires_at || null, seedVersion, brandKitCode || 'adana_classic', now, now, now,
       ),
       db.prepare(
         `INSERT INTO users
@@ -235,7 +241,7 @@ async function provision(env, signed) {
     // النسخة النظيفة تصل بموقع كامل النصوص لا بصفحة فارغة: مطعم يفتح لوحته
     // فيجد حقولًا خاوية لا يعرف ماذا يكتب فيها لن يكمل الإعداد.
     statements.push(...defaultContentStatements(db, restaurantId, {
-      displayName, planCode, config, now,
+      displayName, planCode, config, now, brandKit,
     }));
     if (environment === 'demo') statements.push(...demoSeedStatements(db, restaurantId, now, displayName));
     statements.push(succeed(db, signed.requestId, result, now));

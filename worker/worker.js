@@ -15,7 +15,11 @@
 
 import { HttpError, json, str } from './lib.js';
 import { handleAdapter } from './adapter.js';
-import { loadSite, resolveRestaurant } from './site.js';
+import { loadBestSellers, loadSite, resolveRestaurant } from './site.js';
+import {
+  choices, ARABIC_FONTS, ARABIC_DISPLAY_FONTS, DISPLAY_FONTS, LATIN_FONTS,
+} from './fonts.js';
+import { HERO_STAT_LABELS, CATEGORY_LABELS, SERVICE_LABELS } from './icons.js';
 import { renderHome, renderMenu, renderOrder, simplePage } from './render.js';
 import { orderByToken, publicOrder, publicReservation } from './orders.js';
 import { renderReceiptPng } from './receipt.js';
@@ -52,31 +56,31 @@ async function handlePublic(request, env, slug, rest) {
   }
 
   const base = `/r/${restaurant.slug}/`;
+  const homeUrl = new URL(base, url.origin).toString();
   const lang = langOf(url);
-  const planFull = planAllows(restaurant.plan_code, 'orders');
 
-  // مسارات JSON العامة: الحجز والطلب. لا جلسة، والمستأجر من المسار.
-  if (rest === 'api/reservations' && request.method === 'POST') {
+  // مسارات المنيو والطلب والحجز — أسماؤها ومقاييسها مطابقة لأضنة تمامًا
+  // (`order/`، `reservation/`، `o/{token}/`) لأن `site/js/main.js` المنسوخ
+  // حرفيًا يبني هذه الروابط بنفسه، ولا جلسة على أي منها.
+  if (rest === 'order/' && request.method === 'POST') {
     const settings = await env.DB.prepare('SELECT * FROM settings WHERE restaurant_id = ?')
       .bind(restaurant.restaurant_id).first();
     const body = await request.json().catch(() => {
       throw new HttpError(400, 'INVALID_JSON', 'Request JSON is invalid.');
     });
-    return publicReservation(request, env, restaurant, settings, body);
+    return publicOrder(request, env, restaurant, settings, body, lang, homeUrl);
   }
-  if (rest === 'api/orders' && request.method === 'POST') {
+  if (rest === 'reservation/' && request.method === 'POST') {
     const settings = await env.DB.prepare('SELECT * FROM settings WHERE restaurant_id = ?')
       .bind(restaurant.restaurant_id).first();
-    const body = await request.json().catch(() => {
-      throw new HttpError(400, 'INVALID_JSON', 'Request JSON is invalid.');
-    });
-    return publicOrder(request, env, restaurant, settings, body, lang);
+    const fields = new URLSearchParams(await request.text());
+    return publicReservation(request, env, restaurant, settings, fields, base);
   }
 
   if (request.method !== 'GET') return json({ ok: false, error: 'METHOD_NOT_ALLOWED' }, 405);
 
   // صفحة الطلب وإيصاله: الرمز هو المفتاح، وهو غير قابل للتخمين.
-  const receiptMatch = rest.match(/^order\/([a-zA-Z0-9]+)\/receipt\.png$/);
+  const receiptMatch = rest.match(/^o\/([a-zA-Z0-9]+)\/receipt\.png$/);
   if (receiptMatch) {
     if (!planAllows(restaurant.plan_code, 'receipts')) {
       return simplePage('غير متاح', 'الإيصال المصوَّر جزء من الباقة الكاملة.', 402);
@@ -98,25 +102,29 @@ async function handlePublic(request, env, slug, rest) {
     });
   }
 
-  const orderMatch = rest.match(/^order\/([a-zA-Z0-9]+)\/?$/);
+  const orderMatch = rest.match(/^o\/([a-zA-Z0-9]+)\/?$/);
   if (orderMatch) {
     const found = await orderByToken(env, restaurant.restaurant_id, orderMatch[1]);
     if (!found) return simplePage('الطلب غير موجود', 'تحقق من الرابط.', 404);
     const site = await loadSite(env, restaurant.restaurant_id);
     if (!site.settings) return simplePage('الصفحة غير متاحة', 'هذا الموقع قيد الإعداد.', 404);
-    return html(renderOrder(site, found.order, found.lines, { lang, base, planFull }));
+    const receiptUrl = new URL(`o/${orderMatch[1]}/receipt.png`, homeUrl).toString();
+    return html(renderOrder(site, found.order, found.lines, { base, receiptUrl }));
   }
 
   const site = await loadSite(env, restaurant.restaurant_id);
   if (!site.settings) return simplePage('الصفحة غير متاحة', 'هذا الموقع قيد الإعداد.', 404);
 
-  const canonical = new URL(base + (rest === 'menu' ? 'menu' : ''), url.origin).toString();
-
   if (rest === '' || rest === 'index.html') {
-    return html(renderHome(site, { lang, base, planFull, canonical }), 200, 'public, max-age=60');
+    site.bestSellers = await loadBestSellers(env, restaurant.restaurant_id);
+    const canonical = new URL(base, url.origin).toString();
+    return html(renderHome(site, { lang, base, canonical, homeUrl }), 200, 'public, max-age=60');
   }
-  if (rest === 'menu' || rest === 'menu/') {
-    return html(renderMenu(site, { lang, base, planFull, canonical }), 200, 'public, max-age=60');
+  if (rest === 'menu/' || rest === 'menu') {
+    site.bestSellers = await loadBestSellers(env, restaurant.restaurant_id);
+    const activeCategory = str(url.searchParams.get('category') || 'all', 60);
+    const canonical = new URL(`${base}menu/`, url.origin).toString();
+    return html(renderMenu(site, { lang, base, canonical, activeCategory }), 200, 'public, max-age=60');
   }
   return simplePage('الصفحة غير موجودة', 'تحقق من الرابط.', 404);
 }
@@ -130,6 +138,21 @@ async function handleApi(request, env) {
 
   if (path === '/api/health' && method === 'GET') {
     return json({ ok: true, service: 'athar-restaurant', version: '1.0.0' });
+  }
+  // قوائم الخطوط والأيقونات المعتمدة — تبني منها لوحة المطعم قوائم اختيار،
+  // فلا يكتب أحد اسم خط أو أيقونة بيده. بلا جلسة: نص ثابت لا يخص مستأجرًا.
+  if (path === '/api/meta' && method === 'GET') {
+    return json({
+      fonts: {
+        arabic: choices(ARABIC_FONTS), arabic_display: choices(ARABIC_DISPLAY_FONTS),
+        display: choices(DISPLAY_FONTS), latin: choices(LATIN_FONTS),
+      },
+      icons: {
+        hero_stats: Object.entries(HERO_STAT_LABELS),
+        categories: Object.entries(CATEGORY_LABELS),
+        services: Object.entries(SERVICE_LABELS),
+      },
+    });
   }
   if (path === '/api/login' && method === 'POST') return login(request, env);
 
@@ -209,7 +232,10 @@ export default {
       if (path.startsWith('/api/')) return await handleApi(request, env);
     } catch (error) {
       if (error instanceof HttpError) {
-        const wantsHtml = !path.startsWith('/api/') && !path.includes('/api/');
+        // صفحات تُعرَض بالمتصفح (GET) تحصل على صفحة عذر بالعربية؛ نداءات
+        // API — بما فيها `order/` العام الذي ينادیه `main.js` بجسم JSON —
+        // تحتاج ردًّا JSON يقرأه الكود لا نصًّا يُبنى داخل صفحة كاملة.
+        const wantsHtml = request.method === 'GET' && !path.startsWith('/api/');
         if (wantsHtml) return simplePage('تعذّر إتمام الطلب', error.message, error.status);
         return json({ ok: false, error: error.code, message: error.message }, error.status);
       }

@@ -25,12 +25,20 @@ const sid = (restaurantId, kind, key) => `${kind}_${restaurantId}_${key}`;
 
 /* ==================== النسخة الحقيقية ==================== */
 
-export function defaultContentStatements(db, restaurantId, { displayName, config, now }) {
+export function defaultContentStatements(db, restaurantId, { displayName, config, now, brandKit }) {
   const settings = {
     name_ar: displayName,
     name_en: String(config.short_name || displayName),
     tagline_ar: 'نكهة تُروى',
     tagline_en: 'A taste worth telling',
+
+    // الهوية المختارة من لوحة أثر عند الإنشاء. بعدها ملك المطعم الكامل —
+    // هذه القيم الأولى فقط، لا قيد يمنعه من تغييرها من لوحته لاحقًا.
+    primary_color: brandKit.primary_color, gold_color: brandKit.gold_color,
+    background_color: brandKit.background_color, surface_color: brandKit.surface_color,
+    whatsapp_color: brandKit.whatsapp_color, theme_layer: brandKit.theme_layer,
+    arabic_font: brandKit.arabic_font, arabic_display_font: brandKit.arabic_display_font,
+    display_font: brandKit.display_font, latin_font: brandKit.latin_font,
 
     hero_title_ar: displayName,
     hero_title_en: String(config.short_name || displayName),
@@ -83,12 +91,15 @@ export function defaultContentStatements(db, restaurantId, { displayName, config
 
 /* ==================== نسخة العرض ==================== */
 
+// الأيقونة قيمة رمزية من `icons.js` (`CATEGORY_ICONS`) لا إيموجي مباشر —
+// نفس القاعدة التي تحكم اختيار الخط: معنى يُترجَم إلى أيقونة `lucide` عند
+// العرض، لا نصّ حرّ قد يخرج عن حزمة الأيقونات الثلاثين المرفقة.
 const CATEGORIES = [
-  { key: 'grill', slug: 'grill', ar: 'المشاوي', en: 'Grills', icon: '🔥' },
-  { key: 'sandwich', slug: 'sandwiches', ar: 'الساندويتشات', en: 'Sandwiches', icon: '🥙' },
-  { key: 'mezze', slug: 'mezze', ar: 'المقبلات', en: 'Mezze', icon: '🥗' },
-  { key: 'drinks', slug: 'drinks', ar: 'المشروبات', en: 'Drinks', icon: '🥤' },
-  { key: 'sweets', slug: 'sweets', ar: 'الحلويات', en: 'Sweets', icon: '🍮' },
+  { key: 'grill', slug: 'grill', ar: 'المشاوي', en: 'Grills', icon: 'skewer' },
+  { key: 'sandwich', slug: 'sandwiches', ar: 'الساندويتشات', en: 'Sandwiches', icon: 'burger' },
+  { key: 'mezze', slug: 'mezze', ar: 'المقبلات', en: 'Mezze', icon: 'salad' },
+  { key: 'drinks', slug: 'drinks', ar: 'المشروبات', en: 'Drinks', icon: 'drink' },
+  { key: 'sweets', slug: 'sweets', ar: 'الحلويات', en: 'Sweets', icon: 'dessert' },
 ];
 
 /**
@@ -172,13 +183,13 @@ const OFFERS = [
 ];
 
 const SERVICES = [
-  { key: 'delivery', ar: 'توصيل سريع', en: 'Fast Delivery', icon: '🛵',
+  { key: 'delivery', ar: 'توصيل سريع', en: 'Fast Delivery', icon: 'scooter',
     dar: 'داخل المدينة خلال ٤٥ دقيقة.', den: 'Within the city in 45 minutes.' },
-  { key: 'catering', ar: 'خدمة المناسبات', en: 'Catering', icon: '🎉',
+  { key: 'catering', ar: 'خدمة المناسبات', en: 'Catering', icon: 'dine',
     dar: 'أعراس ومناسبات حتى ٣٠٠ ضيف.', den: 'Weddings and events up to 300 guests.' },
-  { key: 'family', ar: 'قسم عائلي', en: 'Family Section', icon: '👨‍👩‍👧',
+  { key: 'family', ar: 'قسم عائلي', en: 'Family Section', icon: 'leaf',
     dar: 'طابق كامل مخصص للعائلات.', den: 'A full floor for families.' },
-  { key: 'parking', ar: 'موقف مجاني', en: 'Free Parking', icon: '🅿️',
+  { key: 'parking', ar: 'موقف مجاني', en: 'Free Parking', icon: 'clock',
     dar: 'موقف خاص أمام المطعم.', den: 'Private parking at the door.' },
 ];
 
@@ -217,10 +228,10 @@ const FAQS = [
 ];
 
 const HERO_STATS = [
-  { key: 's1', ar: '١٢ عامًا من الخبرة', en: '12 years of experience', icon: '⭐' },
-  { key: 's2', ar: 'أكثر من ٤٠ صنفًا', en: 'Over 40 dishes', icon: '🍽️' },
-  { key: 's3', ar: 'توصيل خلال ٤٥ دقيقة', en: 'Delivery in 45 minutes', icon: '⏱️' },
-  { key: 's4', ar: 'لحوم حلال معتمدة', en: 'Certified halal meat', icon: '✅' },
+  { key: 's1', ar: '١٢ عامًا من الخبرة', en: '12 years of experience', icon: 'crown' },
+  { key: 's2', ar: 'أكثر من ٤٠ صنفًا', en: 'Over 40 dishes', icon: 'star' },
+  { key: 's3', ar: 'توصيل خلال ٤٥ دقيقة', en: 'Delivery in 45 minutes', icon: 'clock' },
+  { key: 's4', ar: 'لحوم حلال معتمدة', en: 'Certified halal meat', icon: 'leaf' },
 ];
 
 /** حجوزات موزّعة على الحالات والأيام: لوحة فارغة لا تبيع منتجًا. */
@@ -295,7 +306,6 @@ export function demoSeedStatements(db, restaurantId, now, displayName = 'مطع�
       whatsapp_number = ?, phone = ?, email = ?,
       address_ar = ?, address_en = ?,
       instagram_url = ?, facebook_url = ?,
-      primary_color = ?, gold_color = ?, theme = ?,
       updated_at = ?
      WHERE restaurant_id = ?`,
   ).bind(
@@ -310,7 +320,6 @@ export function demoSeedStatements(db, restaurantId, now, displayName = 'مطع�
     '970599123456', '+970 59 912 3456', 'hello@example.com',
     'غزة — شارع الوحدة، مقابل حديقة البلدية', 'Gaza — Al Wehda St., opposite the municipal park',
     'https://instagram.com/', 'https://facebook.com/',
-    '#E30613', '#D4AF37', 'dark',
     now, restaurantId,
   ));
 

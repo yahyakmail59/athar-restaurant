@@ -27,6 +27,7 @@ const el = (tag, props = {}, children = []) => {
 const state = {
   token: localStorage.getItem(TOKEN_KEY) || '',
   me: null,
+  meta: null,
   settings: {},
   categories: [],
   items: [],
@@ -168,7 +169,11 @@ async function bootstrap() {
     signOut('');
     return;
   }
-  const info = await api('/api/me');
+  const [info] = await Promise.all([
+    api('/api/me'),
+    // قوائم الخطوط والأيقونات مرة واحدة لكل جلسة، لا لكل نافذة تحرير.
+    state.meta ? Promise.resolve() : api('/api/meta').then((meta) => { state.meta = meta; }),
+  ]);
   state.me = info;
   state.settings = info.settings || {};
 
@@ -472,7 +477,7 @@ const FIELDS = {
     ['name_ar', 'الاسم بالعربية', 'text', true],
     ['name_en', 'الاسم بالإنجليزية', 'text'],
     ['slug', 'المعرّف في الرابط', 'text', true],
-    ['icon', 'الأيقونة (إيموجي)', 'text'],
+    ['icon', 'الأيقونة', 'icon:categories'],
     ['display_order', 'الترتيب', 'number'],
     ['is_active', 'ظاهر', 'bool'],
   ],
@@ -527,7 +532,7 @@ const FIELDS = {
     ['title_en', 'الخدمة بالإنجليزية', 'text'],
     ['description_ar', 'الوصف بالعربية', 'textarea'],
     ['description_en', 'الوصف بالإنجليزية', 'textarea'],
-    ['icon', 'الأيقونة (إيموجي)', 'text'],
+    ['icon', 'الأيقونة', 'icon:services'],
     ['display_order', 'الترتيب', 'number'],
     ['is_active', 'ظاهر', 'bool'],
   ],
@@ -550,7 +555,7 @@ const FIELDS = {
   hero_stats: [
     ['title_ar', 'النص بالعربية', 'text', true],
     ['title_en', 'النص بالإنجليزية', 'text'],
-    ['icon', 'الأيقونة (إيموجي)', 'text'],
+    ['icon', 'الأيقونة', 'icon:hero_stats'],
     ['display_order', 'الترتيب', 'number'],
     ['is_active', 'ظاهر', 'bool'],
   ],
@@ -721,6 +726,23 @@ function fieldNode(name, label, type, value, required) {
     wrap.append(el('select', { id, required: Boolean(required), dataset: { name, type } }, options));
     return wrap;
   }
+  if (type.startsWith('font:')) {
+    const slot = type.slice('font:'.length);
+    const known = state.meta?.fonts?.[slot] || [];
+    const options = known.map(([key, fontLabel]) => el('option', { value: key, textContent: fontLabel, selected: key === value }));
+    wrap.append(el('select', { id, dataset: { name, type: 'text' } }, options));
+    return wrap;
+  }
+  if (type.startsWith('icon:')) {
+    // أيقونة من قائمة لا نصّ حر — نفس قاعدة الخط: القيمة معنى يترجمه الخادم
+    // إلى أيقونة فعلية، لا اسم مكتبة يخطئه من لا يعرفها.
+    const section = type.slice('icon:'.length);
+    const known = state.meta?.icons?.[section] || [];
+    const options = [el('option', { value: '', textContent: '— بلا أيقونة —', selected: !value })]
+      .concat(known.map(([key, iconLabel]) => el('option', { value: key, textContent: iconLabel, selected: key === value })));
+    wrap.append(el('select', { id, dataset: { name, type: 'text' } }, options));
+    return wrap;
+  }
   if (type === 'image') {
     const preview = el('img', { className: 'thumb', alt: '', src: value || '', hidden: !value });
     const hidden = el('input', { id, type: 'hidden', value: value ?? '', dataset: { name, type: 'text' } });
@@ -870,9 +892,11 @@ const IDENTITY_GROUPS = [
     ['background_color', 'لون الخلفية', 'color'],
     ['surface_color', 'لون البطاقات', 'color'],
     ['theme', 'النمط', 'theme'],
-    ['arabic_font', 'الخط العربي', 'text'],
-    ['latin_font', 'الخط اللاتيني', 'text'],
-    ['display_font', 'خط العناوين', 'text'],
+    ['theme_layer', 'طبقة الثيم الإضافية', 'themelayer'],
+    ['arabic_font', 'الخط العربي (نص الجسم)', 'font:arabic'],
+    ['arabic_display_font', 'الخط العربي (العناوين)', 'font:arabic_display'],
+    ['latin_font', 'الخط اللاتيني', 'font:latin'],
+    ['display_font', 'خط العناوين البارزة', 'font:display'],
   ]],
   ['الاتصال', [
     ['whatsapp_number', 'رقم واتساب (أرقام فقط مع رمز الدولة)', 'text'],
@@ -937,6 +961,16 @@ function identityField(name, label, type, value) {
     wrap.append(el('select', { id: `s-${name}`, dataset: { name, type: 'text' } }, [
       el('option', { value: 'dark', textContent: 'داكن', selected: value !== 'light' }),
       el('option', { value: 'light', textContent: 'فاتح', selected: value === 'light' }),
+    ]));
+    return wrap;
+  }
+  if (type === 'themelayer') {
+    // طبقة واحدة موجودة فعلًا فوق التصميم الأساسي. غيرها يشير إلى ملف لم
+    // يُبنَ بعد، فلا تُعرض كخيار حتى لا تُختار قيمة يرفضها الخادم.
+    const wrap = el('div', { className: 'field' }, [el('label', { htmlFor: `s-${name}`, textContent: label })]);
+    wrap.append(el('select', { id: `s-${name}`, dataset: { name, type: 'text' } }, [
+      el('option', { value: '', textContent: 'بلا طبقة إضافية', selected: !value }),
+      el('option', { value: 'luxury', textContent: 'فاخرة (حدود وتدرّجات ذهبية)', selected: value === 'luxury' }),
     ]));
     return wrap;
   }

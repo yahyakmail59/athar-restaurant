@@ -5,9 +5,17 @@
  * يرسل معرّفات وكميات لا أرقامًا. أي صفحة تُرسل السعر تجعل تعديل عنصر واحد
  * في أدوات المطوّر كافيًا لشراء وجبة بشيكل، وهذا ما يجعل الإيصال المرسوم
  * على الخادم ذا معنى أصلًا.
+ *
+ * مسار عام واحد بعقدين: `publicOrder` يخدم `site/js/main.js` المنسوخ حرفيًا
+ * عن أضنة (يرسل `{items:[{id,qty,variant_id,addon_ids}], fulfillment, name,
+ * phone, address, notes}` ويتوقع `{code, order_url, whatsapp_url}`)، بينما
+ * `createOrder`/`cashierOrder` الداخلي (تستدعيه `admin.js` بجلسة) يبقى بعقده
+ * القديم — لا علاقة لأضنة بلوحة المطعم الداخلية.
  */
 
-import { HttpError, json, money, num, orderCode, str } from './lib.js';
+import {
+  HttpError, escapeHtml, json, money, num, orderCode, str,
+} from './lib.js';
 import { planAllows } from './access.js';
 
 const MAX_LINES = 40;
@@ -139,6 +147,10 @@ export async function priceLines(env, restaurantId, rawLines, lang = 'ar') {
 /**
  * ينشئ طلبًا. المصدر يقرر ما يُطلب من حقول: طلب من الموقع يحتاج هاتفًا،
  * وطلب من الكاشير يحتاج طاولة أو اسمًا فقط لأن الزبون واقف أمامه.
+ *
+ * تُستدعى من مسارين: `publicOrder` أدناه (زائر عام)، و`admin.js#cashierOrder`
+ * (موظف بجلسة). كلاهما يمرّ سطوره أولًا على `priceLines`/`priceCartLines`،
+ * فالتسعير الخادمي واحد لا نسختان قد تنحرفان.
  */
 export async function createOrder(env, restaurant, settings, body, { source, cashierId = null, lang = 'ar' }) {
   if (!planAllows(restaurant.plan_code, 'orders')) {
@@ -151,17 +163,19 @@ export async function createOrder(env, restaurant, settings, body, { source, cas
   const phone = str(body.phone, 30).trim();
   const address = str(body.address, 200).trim();
 
-  if (source === 'online') {
+  // اسم وهاتف وعنوان مطلوبة للتوصيل فقط — استلام من المطعم متاح بلا بيانات
+  // اتصال، كما في أضنة: طلب Pickup لا يحتاج معرفة من صاحبه قبل وصوله.
+  if (source === 'online' && fulfillment === 'delivery') {
     if (!customerName) throw new HttpError(422, 'NAME_REQUIRED', 'الاسم مطلوب.');
     if (!/^[\d+\-\s()]{7,30}$/.test(phone)) {
       throw new HttpError(422, 'PHONE_REQUIRED', 'رقم هاتف صحيح مطلوب للتواصل بشأن الطلب.');
     }
-    if (fulfillment === 'delivery' && !address) {
-      throw new HttpError(422, 'ADDRESS_REQUIRED', 'العنوان مطلوب للتوصيل.');
-    }
+    if (!address) throw new HttpError(422, 'ADDRESS_REQUIRED', 'العنوان مطلوب للتوصيل.');
   }
 
-  const { lines, total, hasUnpriced } = await priceLines(env, restaurant.restaurant_id, body.lines, lang);
+  const { lines, total, hasUnpriced } = body.lines
+    ? await priceLines(env, restaurant.restaurant_id, body.lines, lang)
+    : await priceCartLines(env, restaurant.restaurant_id, body.items, lang);
 
   const now = Date.now();
   const orderId = crypto.randomUUID();
@@ -186,11 +200,11 @@ export async function createOrder(env, restaurant, settings, body, { source, cas
   for (const line of lines) {
     statements.push(env.DB.prepare(
       `INSERT INTO order_lines
-       (id, restaurant_id, order_id, menu_item_id, variant_name_ar, addons_json,
+       (id, restaurant_id, order_id, menu_item_id, offer_id, variant_name_ar, addons_json,
         name_ar, name_en, quantity, unit_price_minor, is_priced, price_note, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).bind(
-      crypto.randomUUID(), restaurant.restaurant_id, orderId, line.menu_item_id,
+      crypto.randomUUID(), restaurant.restaurant_id, orderId, line.menu_item_id || null, line.offer_id || null,
       line.variant_name_ar, line.addons_json, line.name_ar, line.name_en,
       line.quantity, line.unit_price_minor, line.is_priced, line.price_note, now,
     ));
@@ -200,25 +214,144 @@ export async function createOrder(env, restaurant, settings, body, { source, cas
   return { id: orderId, code, token, total_minor: total, has_unpriced_lines: hasUnpriced, lines };
 }
 
-/** الطلب العام من الموقع. */
-export async function publicOrder(request, env, restaurant, settings, body, lang) {
+/**
+ * يحوّل عربة `main.js` (`{items:[{id, qty, variant_id, addon_ids}]}`) إلى سطور
+ * مسعّرة. مطابق لـ`priceLines` في القيود والمنطق، بفارق واحد: يقبل صنفًا
+ * بمعرّف `offer-N` فيسعّره من جدول العروض بدل الأصناف — لأن زر «اطلب العرض»
+ * في الصفحة المنسوخة عن أضنة يرسل هذا الشكل بالضبط ولن يُعدَّل.
+ *
+ * عرض بسعر رقمي (`is_priced=1`) يُحسب ويُجمع في الإجمالي كصنف عادي؛ عرض
+ * بنص حر («٢ بسعر ١») يُسجَّل بلا سعر ويُعلَّم الطلب بأنه يحتاج تأكيدًا يدويًا
+ * — العرض التجاري نفسه لا يزال قرار المطعم لا حسابًا آليًا.
+ */
+export async function priceCartLines(env, restaurantId, rawItems, lang = 'ar') {
+  if (!Array.isArray(rawItems) || !rawItems.length) {
+    throw new HttpError(422, 'EMPTY_ORDER', 'السلة فارغة.');
+  }
+  if (rawItems.length > MAX_LINES) {
+    throw new HttpError(422, 'TOO_MANY_LINES', 'عدد الأصناف أكبر من المسموح.');
+  }
+
+  const dishLines = [];
+  const offerCounts = new Map();
+  for (const raw of rawItems) {
+    if (!raw || typeof raw !== 'object') continue;
+    const quantity = num(raw.qty ?? raw.quantity) || 0;
+    if (quantity < 1 || quantity > MAX_QUANTITY) continue;
+    const rawId = str(raw.id, 120);
+    if (rawId.startsWith('offer-')) {
+      const offerId = rawId.slice('offer-'.length);
+      if (!offerId) continue;
+      offerCounts.set(offerId, (offerCounts.get(offerId) || 0) + quantity);
+      continue;
+    }
+    dishLines.push({
+      item_id: rawId, quantity,
+      variant_id: raw.variant_id != null ? str(raw.variant_id, 120) : undefined,
+      addon_ids: Array.isArray(raw.addon_ids) ? raw.addon_ids : [],
+    });
+  }
+  if (!dishLines.length && !offerCounts.size) {
+    throw new HttpError(422, 'EMPTY_ORDER', 'لا يوجد صنف صالح في السلة.');
+  }
+
+  let lines = [];
+  let total = 0;
+  let hasUnpriced = 0;
+
+  if (dishLines.length) {
+    const priced = await priceLines(env, restaurantId, dishLines, lang);
+    lines = priced.lines;
+    total += priced.total;
+    hasUnpriced = hasUnpriced || priced.hasUnpriced;
+  }
+
+  if (offerCounts.size) {
+    const offerIds = [...offerCounts.keys()];
+    const rows = await env.DB.prepare(
+      `SELECT id, title_ar, title_en, price_minor, is_priced, price_text_ar, price_text_en
+       FROM offers WHERE restaurant_id = ? AND is_active = 1 AND id IN (${placeholders(offerIds.length)})`,
+    ).bind(restaurantId, ...offerIds).all();
+    const offersById = new Map(rows.results.map((row) => [row.id, row]));
+    for (const [offerId, quantity] of offerCounts) {
+      const offer = offersById.get(offerId);
+      if (!offer) throw new HttpError(409, 'ITEM_UNAVAILABLE', 'أحد العروض لم يعد متاحًا. حدّث القائمة.');
+      const isPriced = Number(offer.is_priced) === 1;
+      if (isPriced) total += Number(offer.price_minor) * quantity; else hasUnpriced = 1;
+      lines.push({
+        offer_id: offer.id,
+        name_ar: offer.title_ar, name_en: offer.title_en,
+        variant_name_ar: '', addons_json: '[]', quantity,
+        unit_price_minor: isPriced ? Number(offer.price_minor) : 0,
+        is_priced: isPriced ? 1 : 0,
+        price_note: isPriced ? '' : (offer.price_text_ar || (lang === 'en' ? 'Quoted' : 'حسب العرض')),
+      });
+    }
+  }
+
+  return { lines, total, hasUnpriced };
+}
+
+/**
+ * الطلب العام — عقد `site/js/main.js` حرفيًا: `items`/`qty`، ورد
+ * `{code, order_url, whatsapp_url}`.
+ *
+ * فرق منتجي حقيقي عن أضنة (الذي له باقة واحدة فقط): باقة «المنيو» عندي لا
+ * تحفظ طلبات على الخادم إطلاقًا — هذا معناها التجاري. لكن زر الإرسال في
+ * `main.js` ينادي هذا المسار دائمًا مهما كانت الباقة، فلا يمكن رفضه بـ402
+ * كما تفعل بقية المسارات؛ ذلك يكسر الزر لعملاء الباقة الأرخص. الحل: يُسعَّر
+ * الطلب ويُبنى نص واتساب دون أي كتابة في قاعدة البيانات، ويعود بلا `order_url`
+ * (لا صفحة طلب لأنه لا سجل أصلًا) — و`main.js` لا يحتاج غير `whatsapp_url`.
+ */
+export async function publicOrder(request, env, restaurant, settings, body, lang, homeUrl) {
   const ip = request.headers.get('CF-Connecting-IP') || '0';
   await rateLimit(env.DB, `${restaurant.restaurant_id}|ord|${ip}`, 12, 10 * 60e3);
 
-  const order = await createOrder(env, restaurant, settings, body, { source: 'online', lang });
+  const fulfillment = body.fulfillment === 'delivery' ? 'delivery' : 'pickup';
+  const name = str(body.name, 150).trim();
+  const phone = str(body.phone, 40).trim();
+  const address = str(body.address, 500).trim();
+
+  if (fulfillment === 'delivery') {
+    const digits = phone.replace(/\D/g, '');
+    if (!name || !address || digits.length < 7 || digits.length > 15) {
+      throw new HttpError(400, 'BAD_REQUEST', lang === 'ar'
+        ? 'أدخل الاسم ورقم جوال صحيح وعنوان التوصيل.' : 'Enter a name, a valid phone and an address.');
+    }
+  }
+
   const waNumber = String(settings.whatsapp_number || '').replace(/\D/g, '');
-  const summary = order.lines
-    .map((line) => `• ${line.quantity} × ${line.name_ar}`)
-    .join('\n');
+
+  if (!planAllows(restaurant.plan_code, 'orders')) {
+    const { lines } = await priceCartLines(env, restaurant.restaurant_id, body.items, lang);
+    const summary = lines.map((line) => `• ${line.quantity} × ${line.name_ar}`).join('\n');
+    const message = `${lang === 'ar' ? 'طلب جديد' : 'New order'}\n${summary}`
+      + (name ? `\n${lang === 'ar' ? 'الاسم' : 'Name'}: ${name}` : '')
+      + (phone ? `\n${lang === 'ar' ? 'الهاتف' : 'Phone'}: ${phone}` : '')
+      + (address ? `\n${lang === 'ar' ? 'العنوان' : 'Address'}: ${address}` : '');
+    return json({
+      code: '',
+      order_url: '',
+      whatsapp_url: waNumber ? `https://wa.me/${waNumber}?text=${encodeURIComponent(message)}` : '',
+    }, 201);
+  }
+
+  const order = await createOrder(env, restaurant, settings, {
+    customer_name: name || (lang === 'ar' ? 'زبون' : 'Guest'),
+    phone, address, notes: str(body.notes, 500), fulfillment, items: body.items,
+  }, { source: 'online', lang });
+
+  // نسبة إلى جذر موقع المطعم لا إلى مسار هذا الطلب: `request.url` هنا هو
+  // `.../order/`، وحلّ عنوان نسبي عليه يضيف `o/{token}/` *داخل* `order/`
+  // بدل مساواتها بجذر الموقع — كسر اكتُشف بتجربة طلب حقيقي على الإنتاج.
+  const orderUrl = new URL(`o/${order.token}/`, homeUrl).toString();
+  const summary = order.lines.map((line) => `• ${line.quantity} × ${line.name_ar}`).join('\n');
+  const message = `${lang === 'ar' ? 'طلب جديد' : 'New order'} ${order.code}\n${summary}\n${orderUrl}`;
+
   return json({
-    ok: true,
-    token: order.token,
     code: order.code,
-    total: money(order.total_minor, settings.currency || '₪'),
-    whatsapp_url: waNumber
-      ? `https://wa.me/${waNumber}?text=${encodeURIComponent(`طلب ${order.code}\n${summary}`)}`
-      : '',
-    message: `تم استلام طلبك برقم ${order.code}.`,
+    order_url: orderUrl,
+    whatsapp_url: waNumber ? `https://wa.me/${waNumber}?text=${encodeURIComponent(message)}` : '',
   }, 201);
 }
 
@@ -230,50 +363,51 @@ const timeToMinutes = (value) => {
 };
 
 /**
- * الحجز العام.
- *
- * كل قيد هنا مأخوذ من `settings`: ساعات العمل، الطول الزمني للفترة، عدد
- * الحجوزات لكل فترة، وكم يومًا مقدَّمًا. مطعم بطاولتين ومطعم بمئة طاولة
- * يستعملان نفس الشيفرة.
+ * الحجز العام — نموذج HTML عادي (`method="post"`) لا JSON، لأن صفحة الحجز
+ * المنسوخة عن أضنة نموذج كامل الصفحة. النجاح والفشل يُبلَّغان عبر إعادة
+ * توجيه بمعامل استعلام (`?flash=ok_reservation`)، بلا جلسات خادم Django
+ * التي لا مقابل لها هنا.
  */
-export async function publicReservation(request, env, restaurant, settings, body) {
-  if (!planAllows(restaurant.plan_code, 'reservations')) {
-    throw new HttpError(402, 'PLAN_REQUIRED', 'الحجوزات جزء من الباقة الكاملة.');
-  }
+export async function publicReservation(request, env, restaurant, settings, fields, base) {
+  const redirect = (flash) => {
+    const url = new URL(`${base}#contact`, request.url);
+    url.searchParams.set('flash', flash);
+    return new Response(null, { status: 303, headers: { Location: url.toString() } });
+  };
+
+  if (!planAllows(restaurant.plan_code, 'reservations')) return redirect('err_reservation');
+
   const ip = request.headers.get('CF-Connecting-IP') || '0';
-  await rateLimit(env.DB, `${restaurant.restaurant_id}|res|${ip}`, 6, 30 * 60e3);
-
-  const fullName = str(body.full_name, 80).trim();
-  const phone = str(body.phone, 30).trim();
-  const date = str(body.date, 10).trim();
-  const time = str(body.time, 5).trim();
-  const guests = num(body.guests);
-
-  if (!fullName) throw new HttpError(422, 'NAME_REQUIRED', 'الاسم مطلوب.');
-  if (!/^[\d+\-\s()]{7,30}$/.test(phone)) {
-    throw new HttpError(422, 'PHONE_REQUIRED', 'رقم هاتف صحيح مطلوب لتأكيد الحجز.');
+  try {
+    await rateLimit(env.DB, `${restaurant.restaurant_id}|res|${ip}`, 6, 30 * 60e3);
+  } catch {
+    // علامة مستقلة عن فشل بيانات الحجز: كلاهما يعيد التوجيه لنفس القسم،
+    // لكن رسالة «حاول لاحقًا» مختلفة عن «راجع البيانات» في الصفحة.
+    return redirect('rl_reservation');
   }
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new HttpError(422, 'INVALID_DATE', 'التاريخ غير صحيح.');
-  if (guests < 1 || guests > 50) throw new HttpError(422, 'INVALID_GUESTS', 'عدد الضيوف غير مقبول.');
+
+  const fullName = str(fields.get('full_name'), 80).trim();
+  const phone = str(fields.get('phone'), 30).trim();
+  const date = str(fields.get('date'), 10).trim();
+  const time = str(fields.get('time'), 5).trim();
+  const guests = num(fields.get('guests'));
+
+  if (!fullName || !/^[\d+\-\s()]{7,30}$/.test(phone) || !/^\d{4}-\d{2}-\d{2}$/.test(date)
+    || guests < 1 || guests > 50) {
+    return redirect('err_reservation');
+  }
 
   const today = new Date().toISOString().slice(0, 10);
   const maxDate = new Date(Date.now() + Number(settings.max_reservation_days_ahead || 30) * 864e5)
     .toISOString().slice(0, 10);
-  if (date < today) throw new HttpError(422, 'DATE_IN_PAST', 'لا يمكن الحجز في تاريخ مضى.');
-  if (date > maxDate) {
-    throw new HttpError(422, 'DATE_TOO_FAR', `الحجز متاح حتى ${maxDate}.`);
-  }
+  if (date < today || date > maxDate) return redirect('err_reservation');
 
   const minutes = timeToMinutes(time);
   const open = timeToMinutes(settings.reservation_open_time || '12:00');
   const close = timeToMinutes(settings.reservation_close_time || '23:00');
-  if (minutes < 0 || minutes < open || minutes > close) {
-    throw new HttpError(422, 'OUTSIDE_HOURS',
-      `الحجز متاح بين ${settings.reservation_open_time} و${settings.reservation_close_time}.`);
-  }
   const slot = Number(settings.reservation_slot_minutes || 30);
-  if (slot > 0 && (minutes - open) % slot !== 0) {
-    throw new HttpError(422, 'INVALID_SLOT', `اختر وقتًا كل ${slot} دقيقة.`);
+  if (minutes < 0 || minutes < open || minutes > close || (slot > 0 && (minutes - open) % slot !== 0)) {
+    return redirect('err_reservation');
   }
 
   // الطاقة الاستيعابية تُقاس على الخادم لحظة الحفظ: حسابها في المتصفح يعني
@@ -283,7 +417,7 @@ export async function publicReservation(request, env, restaurant, settings, body
      WHERE restaurant_id = ? AND date = ? AND time = ? AND status <> 'cancelled'`,
   ).bind(restaurant.restaurant_id, date, time).first();
   if (Number(taken?.count || 0) >= Number(settings.max_reservations_per_slot || 4)) {
-    throw new HttpError(409, 'SLOT_FULL', 'هذا الموعد مكتمل. جرّب وقتًا آخر.');
+    return redirect('err_reservation');
   }
 
   const now = Date.now();
@@ -293,13 +427,10 @@ export async function publicReservation(request, env, restaurant, settings, body
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?, ?)`,
   ).bind(
     crypto.randomUUID(), restaurant.restaurant_id, fullName, phone, date, time, guests,
-    str(body.occasion, 60), str(body.notes, 300), now, now,
+    str(fields.get('occasion'), 60), str(fields.get('notes'), 500), now, now,
   ).run();
 
-  return json({
-    ok: true,
-    message: `تم استلام طلب الحجز ليوم ${date} الساعة ${time}. سنتواصل معك لتأكيده.`,
-  }, 201);
+  return redirect('ok_reservation');
 }
 
 /* ==================== قراءة طلب بالرمز ==================== */
@@ -315,3 +446,8 @@ export async function orderByToken(env, restaurantId, token) {
   ).bind(restaurantId, order.id).all();
   return { order, lines: lines.results };
 }
+
+export const orderSummaryHtml = (lines, currency) => lines
+  .map((line) => `${line.quantity} × ${escapeHtml(line.name_ar)} — ${
+    Number(line.is_priced) ? money(line.unit_price_minor * line.quantity, currency) : line.price_note}`)
+  .join('<br>');
