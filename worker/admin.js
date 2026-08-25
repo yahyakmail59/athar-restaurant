@@ -57,9 +57,17 @@ export async function login(request, env) {
   const locked = await checkLock(env.DB, lockKey);
   if (locked) throw new HttpError(429, 'LOCKED', `محاولات كثيرة. أعد المحاولة بعد ${locked} ثانية.`);
 
+  // يُقبل معرّف المطعم أو الـslug الظاهر في رابط الموقع.
+  //
+  // زر «الإدارة» في تذييل الموقع يمرّر الـslug: هو معرّف الموقع الظاهر أصلًا
+  // في عنوان كل صفحة، فلا يضيف تمريره شيئًا. ولا يُبنى على هذا وهمُ حماية:
+  // `sid()` تحشر `restaurant_id` داخل معرّف كل صنف، فهو منشور في الصفحة
+  // العامة عشرات المرات سلفًا. الحماية الحقيقية كلمة المرور والقفل بعد
+  // المحاولات، لا سرّية المعرّف.
   const restaurant = await env.DB.prepare(
-    'SELECT restaurant_id, is_active, plan_code, environment, name, slug FROM restaurants WHERE restaurant_id = ?',
-  ).bind(restaurantId).first();
+    `SELECT restaurant_id, is_active, plan_code, environment, name, slug FROM restaurants
+     WHERE restaurant_id = ? OR slug = ?`,
+  ).bind(restaurantId, restaurantId.toLowerCase()).first();
   if (!restaurant) {
     await noteFail(env.DB, lockKey);
     throw new HttpError(401, 'INVALID_CREDENTIALS', 'بيانات الدخول غير صحيحة.');
@@ -71,7 +79,7 @@ export async function login(request, env) {
   const user = await env.DB.prepare(
     `SELECT id, username, display_name, role, password_hash, password_salt, password_iterations
      FROM users WHERE restaurant_id = ? AND username = ? AND is_active = 1`,
-  ).bind(restaurantId, username).first();
+  ).bind(restaurant.restaurant_id, username).first();
   if (!user) {
     await noteFail(env.DB, lockKey);
     throw new HttpError(401, 'INVALID_CREDENTIALS', 'بيانات الدخول غير صحيحة.');
@@ -88,7 +96,7 @@ export async function login(request, env) {
   await env.DB.prepare(
     `INSERT INTO sessions (token_hash, restaurant_id, user_id, role, device_id, created_at, expires_at)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
-  ).bind(await sha256b64(token), restaurantId, user.id, user.role,
+  ).bind(await sha256b64(token), restaurant.restaurant_id, user.id, user.role,
     str(body.device_id, 60), now, now + SESSION_TTL_MS).run();
 
   return json({
@@ -96,7 +104,7 @@ export async function login(request, env) {
     token,
     expires_at: now + SESSION_TTL_MS,
     restaurant: {
-      id: restaurantId, name: restaurant.name, slug: restaurant.slug,
+      id: restaurant.restaurant_id, name: restaurant.name, slug: restaurant.slug,
       plan_code: restaurant.plan_code, environment: restaurant.environment,
     },
     user: { id: user.id, username: user.username, name: user.display_name, role: user.role },

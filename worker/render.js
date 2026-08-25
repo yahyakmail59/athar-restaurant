@@ -75,6 +75,19 @@ function rootVars(settings) {
 }`;
 }
 
+/**
+ * أنماط أثر وحدها — ما لا مقابل له في `style.css` المنسوخ حرفيًا عن أضنة.
+ *
+ * تُحقن هنا لا في الملف نفسه: الملف يبقى مطابقًا للأصل بايتًا ببايت فتُقارن
+ * ترقياته مستقبلًا بلا تشويش. و`.footer-bottom` أصلًا `space-between`، فزر
+ * الإدارة يقف في الطرف المقابل لحقوق النشر بلا تعديل في التخطيط.
+ */
+const ATHAR_CSS = '.footer-admin{display:inline-flex;align-items:center;gap:6px;'
+  + 'font:500 .62rem var(--latin);color:#777;text-decoration:none;opacity:.75;'
+  + 'transition:color .2s,opacity .2s}'
+  + '.footer-admin:hover,.footer-admin:focus-visible{color:var(--brand-gold);opacity:1}'
+  + '.footer-admin svg{flex:none}';
+
 /** طبقة الثيم الإضافية — تُحمَّل فوق `style.css` ولا تعدّله، كما في أضنة تمامًا. */
 const THEME_LAYERS = { luxury: '/site/css/themes/luxury.css' };
 const themeLayerHref = (settings) => THEME_LAYERS[String(settings.theme_layer || '')] || '';
@@ -186,7 +199,7 @@ ${canonical ? `<link rel="canonical" href="${escapeHtml(canonical)}">` : ''}
 <noscript><link href="${escapeHtml(fontUrl(settings.arabic_font, settings.display_font, settings.latin_font, settings.arabic_display_font))}" rel="stylesheet"></noscript>
 <link rel="stylesheet" href="/site/css/style.css">
 ${themeLayer ? `<link rel="stylesheet" href="${themeLayer}">` : ''}
-<style>${rootVars(settings)}</style>
+<style>${rootVars(settings)}${ATHAR_CSS}</style>
 <script src="/site/js/lucide-slim.js" defer></script>
 <script src="/site/js/main.js" defer></script>
 </head>
@@ -587,6 +600,30 @@ function reservationForm(s, lang, baseUrl) {
 </form>`;
 }
 
+/**
+ * زر «الإدارة» في شريط التذييل السفلي.
+ *
+ * يمرّر الـslug لا معرّف المطعم الداخلي، وفي **جزء العنوان** (`#`) لا في
+ * معاملات الاستعلام. سببان:
+ *  - الـslug منشور أصلًا في عنوان كل صفحة، فتمريره لا يكشف جديدًا. (والمعرّف
+ *    الداخلي منشور هو الآخر بلا قصد: `sid()` تحشره في معرّف كل صنف. هذا
+ *    تسريب قائم يستحق إصلاحًا مستقلًّا، لا مبرّرًا لزيادته.)
+ *  - ما بعد `#` لا يُرسل إلى أي خادم ولا يدخل سجلات الوسطاء، بخلاف `?r=`.
+ *
+ * ولا يُمرَّر اسم مستخدم ولا كلمة مرور بحال: الزر يختصر خانة واحدة فقط،
+ * ويبقى الدخول كاملًا كما هو.
+ */
+function adminLink(baseUrl, lang) {
+  // `/r/{slug}/` — آخر مقطع هو الـslug.
+  const slug = String(baseUrl).split('/').filter(Boolean).pop() || '';
+  const label = lang === 'ar' ? 'الإدارة' : 'Management';
+  return `<a class="footer-admin" href="/#r=${encodeURIComponent(slug)}" rel="nofollow noopener">`
+    + '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" '
+    + 'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    + '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
+    + `<span>${escapeHtml(label)}</span></a>`;
+}
+
 function footer(s, lang, showCategories, baseUrl) {
   const t = (ar, en) => (lang === 'ar' ? ar : en);
   const compact = !on(s.show_featured) || !on(s.show_categories);
@@ -602,17 +639,18 @@ ${s.instagram_url ? `<a class="social-instagram" href="${escapeHtml(s.instagram_
 <button class="social-whatsapp js-open-cart" type="button" aria-label="WhatsApp"><i data-lucide="message-circle"></i></button>
 </div>
 </div>
-<div><h3>${t('روابط سريعة', 'Quick links')}</h3><a href="./#hero">${t('الرئيسية', 'Home')}</a>
-${on(s.show_about) ? `<a href="./#about">${t('من نحن', 'About us')}</a>` : ''}
-${on(s.show_featured) ? `<a href="./menu/">${t('المنيو الكامل', 'Full menu')}</a>` : ''}
-${on(s.show_offers) ? `<a href="./#offers">${t('العروض', 'Offers')}</a>` : ''}
+<div><h3>${t('روابط سريعة', 'Quick links')}</h3><a href="${escapeHtml(baseUrl)}#hero">${t('الرئيسية', 'Home')}</a>
+${on(s.show_about) ? `<a href="${escapeHtml(baseUrl)}#about">${t('من نحن', 'About us')}</a>` : ''}
+${on(s.show_featured) ? `<a href="${escapeHtml(baseUrl)}menu/">${t('المنيو الكامل', 'Full menu')}</a>` : ''}
+${on(s.show_offers) ? `<a href="${escapeHtml(baseUrl)}#offers">${t('العروض', 'Offers')}</a>` : ''}
 ${on(s.show_reservation) ? `<a href="${escapeHtml(baseUrl)}#contact">${t('تواصل معنا', 'Contact us')}</a>` : ''}
 </div>
 ${showCategories && on(s.show_featured) && on(s.show_categories) ? '' : ''}
 <div><h3>${t('تواصل معنا', 'Contact us')}</h3><a href="tel:${escapeHtml(String(s.phone || '').replace(/\s/g, ''))}">${escapeHtml(s.phone || '')}</a>
 ${s.email ? `<a href="mailto:${escapeHtml(s.email)}">${escapeHtml(s.email)}</a>` : ''}<span>${escapeHtml(bi(s, 'address', lang))}</span></div>
 </div>
-<div class="page-shell footer-bottom"><span>© ${new Date().getFullYear()} ${escapeHtml(s.name_en || s.name_ar)}. ${t('جميع الحقوق محفوظة.', 'All rights reserved.')}</span></div>
+<div class="page-shell footer-bottom"><span>© ${new Date().getFullYear()} ${escapeHtml(s.name_en || s.name_ar)}. ${t('جميع الحقوق محفوظة.', 'All rights reserved.')}</span>
+${adminLink(baseUrl, lang)}</div>
 </footer>`;
 }
 

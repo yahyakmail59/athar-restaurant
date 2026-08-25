@@ -1218,4 +1218,22 @@ $('account-form').addEventListener('submit', async (event) => {
 
 /* ==================== البداية ==================== */
 
+/**
+ * زر «الإدارة» في موقع المطعم يصل بـ`#r={slug}`.
+ *
+ * جزء العنوان لا معامل استعلام: لا يُرسل إلى الخادم ولا يدخل سجلات الوسطاء.
+ * ويُمسح فور قراءته فلا يبقى في شريط العنوان ولا في سجل التصفح، ولا يُنسخ
+ * مع الرابط إن شاركه أحد. يملأ خانة المطعم وحدها ثم يضع المؤشر على اسم
+ * المستخدم — لا اسم ولا كلمة مرور يأتيان من الرابط بحال.
+ */
+(function prefillFromLink() {
+  const slug = /[#&]r=([^&]+)/.exec(location.hash || '')?.[1];
+  if (!slug) return;
+  history.replaceState(null, '', location.pathname + location.search);
+  const field = $('login-restaurant');
+  if (!field) return;
+  try { field.value = decodeURIComponent(slug); } catch { field.value = slug; }
+  $('login-username')?.focus();
+}());
+
 bootstrap().catch(() => signOut(''));

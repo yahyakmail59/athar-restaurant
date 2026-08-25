@@ -305,6 +305,31 @@ await check('the order endpoint the cart posts to works from every page', async 
   }
 });
 
+await check('the management link carries the slug only, and the slug can sign in', async () => {
+  const html = await (await call('/r/adana-demo/')).text();
+  const href = /<a class="footer-admin" href="([^"]+)"/.exec(html)?.[1];
+  assert.equal(href, '/#r=adana-demo', `رابط الإدارة = ${href}`);
+
+  const row = await db.prepare("SELECT restaurant_id FROM restaurants WHERE slug = 'adana-demo'").first();
+  // الرابط نفسه لا يحمل المعرّف الداخلي ولا أي بيانات اعتماد.
+  //
+  // ملاحظة: لا يفحص هذا خلوّ *الصفحة* من المعرّف، لأنها ليست خالية منه —
+  // `sid()` تبنيه داخل معرّف كل صنف وعرض، فيظهر عشرات المرات في كل صفحة.
+  // تسريب قائم قبل هذا الزر ومستقل عنه، وإصلاحه يمسّ توليد المعرّفات كلها.
+  assert.ok(!href.includes(row.restaurant_id), 'رابط الإدارة يحمل المعرّف الداخلي');
+  assert.ok(!/password|secret|كلمة/i.test(href), 'رابط الإدارة يحمل بيانات اعتماد');
+
+  // والـslug يفتح اللوحة فعلًا، وإلا فالزر يوصل إلى خانة لا تُقبل قيمتها.
+  const bySlug = await call('/api/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ restaurant_id: 'adana-demo', username: demo.credentials.username, password: demo.credentials.secret }),
+  });
+  assert.equal(bySlug.status, 200, 'الدخول بالـslug مرفوض');
+  const body = await bySlug.json();
+  assert.equal(body.restaurant.id, row.restaurant_id, 'الردّ يعيد ما أُرسل بدل المعرّف الحقيقي');
+});
+
 await check('the demo site shows dish, offer and hero images', async () => {
   // النسخة التجريبية هي ما يُعرض على العميل قبل الشراء: منيو بلا صور يبيع
   // أقل، وهذا سبب وجود الصور أصلًا. الفحص يقرأ الصفحة المولَّدة لا البذرة،
