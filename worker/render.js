@@ -132,14 +132,20 @@ ${on(settings.show_about) ? `<a href="#about">${t('<b>من نحن</b><small>ABOU
  * التنقل السفلي. كل معرّف هنا يقرؤه `main.js` بالاسم، فلا يُغيَّر بلا داعٍ.
  */
 export function layout({ settings, lang, title, description, body, canonical = '', homeUrl = '',
-  isMenuPage = false, bestSellers = [], offers = [] }) {
+  base = '/', isMenuPage = false, bestSellers = [], offers = [] }) {
   const dir = lang === 'ar' ? 'rtl' : 'ltr';
   const t = (ar, en) => (lang === 'ar' ? ar : en);
   const themeLayer = themeLayerHref(settings);
   const fonts = fontStacks(settings);
   void fonts;
-  const orderUrlAttr = '';
-  void orderUrlAttr;
+  // مسار مطلق مبنيّ على `base` (وهو `/r/{slug}/`)، لا نسبي ولا مشتقّ من
+  // `homeUrl`. سببان:
+  //  - نسبيًّا (`order/`) يُحلّ على مسار الصفحة: يصيب من الرئيسية ويصير
+  //    `/menu/order/` من صفحة المنيو فيردّ 405، وهي الصفحة التي يطلب منها
+  //    أكثر الزبائن.
+  //  - `homeUrl` لا تمرّره `renderMenu`، فالاعتماد عليه يعطي `/order/` بلا
+  //    اسم المطعم فيسقط الطلب من *كل* صفحة. `base` تمرّره الصفحتان كلتاهما.
+  const orderUrlAttr = `${base.endsWith('/') ? base : `${base}/`}order/`;
   const name = bi(settings, 'name', lang);
 
   return `<!doctype html>
@@ -166,7 +172,7 @@ ${themeLayer ? `<link rel="stylesheet" href="${themeLayer}">` : ''}
 <script src="/site/js/lucide-slim.js" defer></script>
 <script src="/site/js/main.js" defer></script>
 </head>
-<body${isMenuPage ? ' class="menu-page-body"' : ''} data-lang="${lang}" data-whatsapp="${escapeHtml(digitsOnly(settings.whatsapp_number))}" data-currency="${escapeHtml(settings.currency || '₪')}" data-order-url="order/">
+<body${isMenuPage ? ' class="menu-page-body"' : ''} data-lang="${lang}" data-whatsapp="${escapeHtml(digitsOnly(settings.whatsapp_number))}" data-currency="${escapeHtml(settings.currency || '₪')}" data-order-url="${escapeHtml(orderUrlAttr)}">
 <a class="skip-link" href="#main">${t('انتقل إلى المحتوى', 'Skip to content')}</a>
 
 <header class="site-header" id="top">
@@ -525,7 +531,7 @@ ${site.socialPosts.slice(0, 6).map((post) => {
   parts.push(footer(s, lang, true));
 
   return layout({
-    settings: s, lang, isMenuPage: false, bestSellers, offers: site.offers, canonical, homeUrl,
+    settings: s, lang, isMenuPage: false, bestSellers, offers: site.offers, canonical, homeUrl, base,
     title: bi(s, 'seo_title', lang) || bi(s, 'name', lang),
     description: bi(s, 'seo_description', lang) || bi(s, 'hero_text', lang),
     body: parts.join(''),
@@ -848,7 +854,7 @@ ${site.offers.map((offer) => offerCard(offer, lang, currency)).join('')}
 </footer>`;
 
   return layout({
-    settings: s, lang, isMenuPage: true, bestSellers, offers: site.offers, canonical,
+    settings: s, lang, isMenuPage: true, bestSellers, offers: site.offers, canonical, base,
     title: bi(s, 'name', lang) ? (lang === 'ar' ? `منيو ${s.name_ar}` : `${s.name_en} Menu`) : (lang === 'ar' ? 'المنيو' : 'Menu'),
     description: bi(s, 'seo_description', lang) || bi(s, 'hero_text', lang),
     body,

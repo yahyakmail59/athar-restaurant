@@ -256,6 +256,25 @@ await check('a clean production tenant still serves a complete page', async () =
     'a raw empty value leaked into rendered text');
 });
 
+await check('the order endpoint the cart posts to works from every page', async () => {
+  // `main.js` يقرأ `data-order-url` من `<body>` ويناديها كما هي، فقيمتها هي
+  // الطلب كله. أخطأت مرتين هنا: قيمة نسبية (`order/`) تُحلّ على مسار الصفحة
+  // فتصير `/menu/order/` وتردّ 405 من صفحة المنيو، ثم قيمة مشتقّة من `homeUrl`
+  // الذي لا تمرّره `renderMenu` فصارت `/order/` بلا اسم المطعم وسقط الطلب من
+  // كل صفحة.
+  //
+  // الفحص بنيويّ لا سلوكيّ عمدًا: النسخة التي اكتفت بأن الطلب «لا يردّ خطأً»
+  // مرّت بينما الإنتاج مكسور، لأن `/order/` سلك في بيئة الاختبار طريقًا لا
+  // يسلكه هناك. المساواة الصريحة لا يمكن أن تُخدع كذلك. وهي أيضًا لا تستهلك
+  // من حدّ الطلبات، فلا تُفشل فحصًا لاحقًا بـ429.
+  for (const path of ['/r/adana-demo/', '/r/adana-demo/menu/']) {
+    const html = await (await call(path)).text();
+    const endpoint = /data-order-url="([^"]+)"/.exec(html)?.[1];
+    assert.equal(endpoint, '/r/adana-demo/order/',
+      `data-order-url في ${path} = ${endpoint} — يجب أن يحمل مسار المطعم كاملًا`);
+  }
+});
+
 await check('the demo site shows dish, offer and hero images', async () => {
   // النسخة التجريبية هي ما يُعرض على العميل قبل الشراء: منيو بلا صور يبيع
   // أقل، وهذا سبب وجود الصور أصلًا. الفحص يقرأ الصفحة المولَّدة لا البذرة،
