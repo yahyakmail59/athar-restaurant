@@ -267,11 +267,21 @@ await check('the order endpoint the cart posts to works from every page', async 
   // مرّت بينما الإنتاج مكسور، لأن `/order/` سلك في بيئة الاختبار طريقًا لا
   // يسلكه هناك. المساواة الصريحة لا يمكن أن تُخدع كذلك. وهي أيضًا لا تستهلك
   // من حدّ الطلبات، فلا تُفشل فحصًا لاحقًا بـ429.
-  for (const path of ['/r/adana-demo/', '/r/adana-demo/menu/']) {
+  // بلا شرطة مائلة أخيرة أيضًا: الخادم يردّ 200 على الشكلين بلا تحويل، وهناك
+  // بالضبط ينكسر أي عنوان نسبي — يُسقط المتصفح آخر مقطع.
+  for (const path of ['/r/adana-demo/', '/r/adana-demo', '/r/adana-demo/menu/', '/r/adana-demo/menu']) {
     const html = await (await call(path)).text();
     const endpoint = /data-order-url="([^"]+)"/.exec(html)?.[1];
     assert.equal(endpoint, '/r/adana-demo/order/',
       `data-order-url في ${path} = ${endpoint} — يجب أن يحمل مسار المطعم كاملًا`);
+
+    // رابط «تصفح القائمة» في السلة الفارغة: كان `menu/` نسبيًّا فيصير
+    // `/r/menu/` من عنوان بلا شرطة، و`./` يعيد إلى الرئيسية من `/menu`.
+    const cta = /href="([^"]+)" class="btn btn-outline js-close-cart"/.exec(html)?.[1];
+    if (cta !== undefined) {
+      assert.equal(cta, '/r/adana-demo/menu/',
+        `رابط تصفح القائمة في ${path} = ${cta} — يجب أن يكون مطلقًا`);
+    }
   }
 });
 

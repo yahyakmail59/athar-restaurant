@@ -543,6 +543,11 @@
                 addButton.classList.remove('added');
                 if (addLabel && originalLabel) addLabel.textContent = originalLabel;
             }, 900);
+            // ATHAR: adding from the dish dialog closes it. Upstream leaves the
+            // dialog open, which strands the customer on a panel whose job is
+            // done and hides the cart confirmation behind it. Cards outside the
+            // dialog are unaffected — closeDishDialog() is a no-op for them.
+            if (addButton.closest('#dish-dialog')) closeDishDialog();
             return;
         }
 

@@ -145,7 +145,9 @@ export function layout({ settings, lang, title, description, body, canonical = '
   //    أكثر الزبائن.
   //  - `homeUrl` لا تمرّره `renderMenu`، فالاعتماد عليه يعطي `/order/` بلا
   //    اسم المطعم فيسقط الطلب من *كل* صفحة. `base` تمرّره الصفحتان كلتاهما.
-  const orderUrlAttr = `${base.endsWith('/') ? base : `${base}/`}order/`;
+  const baseUrl = base.endsWith('/') ? base : `${base}/`;
+  const orderUrlAttr = `${baseUrl}order/`;
+  const menuUrlAttr = `${baseUrl}menu/`;
   const name = bi(settings, 'name', lang);
 
   return `<!doctype html>
@@ -251,7 +253,11 @@ ${on(settings.show_featured) ? `<a href="${isMenuPage ? './' : 'menu/'}" class="
 <i data-lucide="shopping-bag"></i>
 <p>${t('لم تضف أي طبق بعد.', 'No dishes added yet.')}</p>
 ${on(settings.show_featured)
-    ? `<a href="${isMenuPage ? './' : 'menu/'}" class="btn btn-outline js-close-cart">${escapeHtml(bi(settings, 'menu_cta', lang))}</a>`
+    // مطلق لا نسبي: الصفحة تُخدم بشرطة مائلة أخيرة وبدونها معًا (كلاهما 200،
+    // بلا تحويل). فعلى `/r/{slug}` بلا شرطة يُسقط المتصفح آخر مقطع وتصير
+    // `menu/` هي `/r/menu/` — رابط لا وجود له. و`./` من `/menu` بلا شرطة
+    // تعيد إلى الرئيسية بدل البقاء في القائمة.
+    ? `<a href="${escapeHtml(menuUrlAttr)}" class="btn btn-outline js-close-cart">${escapeHtml(bi(settings, 'menu_cta', lang))}</a>`
     : `<button type="button" class="btn btn-outline js-close-cart">${t('إغلاق', 'Close')}</button>`}
 </div>
 <div class="drawer-upsell hidden" id="drawer-upsell">
