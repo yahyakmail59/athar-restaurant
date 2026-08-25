@@ -256,6 +256,29 @@ await check('a clean production tenant still serves a complete page', async () =
     'a raw empty value leaked into rendered text');
 });
 
+await check('the demo site shows dish, offer and hero images', async () => {
+  // النسخة التجريبية هي ما يُعرض على العميل قبل الشراء: منيو بلا صور يبيع
+  // أقل، وهذا سبب وجود الصور أصلًا. الفحص يقرأ الصفحة المولَّدة لا البذرة،
+  // فيمسك انقطاع السلسلة عند أي حلقة (بذرة، استعلام، مولّد).
+  const page = await (await call('/r/adana-demo/')).text();
+  const srcs = [...page.matchAll(/<img[^>]+src="([^"]+)"/g)].map((match) => match[1]);
+  const demo = srcs.filter((src) => src.startsWith('/site/img/demo/'));
+  // عدد لا مجرّد وجود: مفتاح يُكتب خطأً في `DEMO_IMAGES` لا يكسر شيئًا — يعيد
+  // '' فتختفي صورة واحدة بصمت. «توجد صور» يمرّ وقد ضاعت ستة عشر منها.
+  const offers = demo.filter((src) => src.startsWith('/site/img/demo/offer/'));
+  assert.equal(new Set(offers).size, 4, `صور العروض ${new Set(offers).size} لا 4`);
+  assert.ok(demo.some((src) => src.startsWith('/site/img/demo/dish/')), 'no dish images rendered');
+  assert.ok(page.includes('/site/img/demo/hero.webp'), 'the hero image is missing');
+  // كل مسار يجب أن يكون لملف مبنيّ فعلًا: `demoImage` يعمل من قائمة مكتوبة
+  // بيدي لا من قراءة القرص (لا نظام ملفات داخل Worker)، فخطأ مطبعي واحد في
+  // تلك القائمة يعني رابطًا مكسورًا لا يظهر إلا في المتصفح.
+  const { existsSync } = await import('node:fs');
+  for (const src of new Set(demo)) {
+    assert.ok(existsSync(new URL(`../../public${src}`, import.meta.url)),
+      `المسار في البذرة لا يقابله ملف مبنيّ: ${src}`);
+  }
+});
+
 await check('a clean production menu is empty but not broken', async () => {
   const other = await db.prepare('SELECT slug FROM restaurants WHERE control_tenant_id = ?')
     .bind(TENANT_B).first();

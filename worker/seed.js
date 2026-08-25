@@ -94,6 +94,32 @@ export function defaultContentStatements(db, restaurantId, { displayName, config
 // الأيقونة قيمة رمزية من `icons.js` (`CATEGORY_ICONS`) لا إيموجي مباشر —
 // نفس القاعدة التي تحكم اختيار الخط: معنى يُترجَم إلى أيقونة `lucide` عند
 // العرض، لا نصّ حرّ قد يخرج عن حزمة الأيقونات الثلاثين المرفقة.
+/**
+ * صور النسخة التجريبية — أصول ثابتة يخدمها الـWorker، لا نسخ في R2 لكل مستأجر.
+ *
+ * لماذا ثابتة: كل مطعم تجريبي يعرض المنيو نفسه، فنسخ ٢٧ صورة في R2 لكل واحد
+ * إنفاق بلا مقابل. صاحب المطعم يستبدلها برفع صوره متى شاء، فيصير `image_url`
+ * رابط R2 خاصًّا به — هذه قيمة ابتدائية لا قيد.
+ *
+ * القوائم صريحة لا مبنيّة من مجلد: البذرة تعمل داخل Worker بلا نظام ملفات،
+ * فلا سبيل لسؤال القرص أي صورة موجودة. مفتاح بلا صورة يعيد '' والتصميم
+ * يعرض البطاقة بلا صورة — أفضل من رابط مكسور.
+ *
+ * الأصناف الناقصة عمدًا: لا صورة *صادقة* لها في المشاريع الثلاثة. جرّبتُ
+ * أقربها ثم نظرتُ إلى النتيجة على الصفحة الحيّة فحذفتها: متبّل بصورة طبق
+ * مقبلات فيه أصابع جبنة، ومشروب غازي بصورة عصائر، وبوظة بصورة موس شوكولاتة
+ * — كلها يراها الزبون خطأً. بطاقة بلا صورة أنظف من بطاقة تكذب.
+ */
+const DEMO_IMAGES = {
+  dish: new Set(['adana', 'arayes', 'burger', 'chickenshawarma', 'chops', 'coffee', 'fries',
+    'hummus', 'kunafa', 'lemonmint', 'mixgrill', 'shawarma', 'shish']),
+  offer: new Set(['breakfast', 'family', 'lunch', 'two']),
+  category: new Set(['drinks', 'grill', 'mezze', 'sandwich', 'sweets']),
+};
+
+const demoImage = (kind, key) =>
+  (DEMO_IMAGES[kind].has(key) ? `/site/img/demo/${kind}/${key}.webp` : '');
+
 const CATEGORIES = [
   { key: 'grill', slug: 'grill', ar: 'المشاوي', en: 'Grills', icon: 'skewer' },
   { key: 'sandwich', slug: 'sandwiches', ar: 'الساندويتشات', en: 'Sandwiches', icon: 'burger' },
@@ -306,6 +332,7 @@ export function demoSeedStatements(db, restaurantId, now, displayName = 'مطع�
       whatsapp_number = ?, phone = ?, email = ?,
       address_ar = ?, address_en = ?,
       instagram_url = ?, facebook_url = ?,
+      hero_image_url = ?, og_image_url = ?,
       updated_at = ?
      WHERE restaurant_id = ?`,
   ).bind(
@@ -320,6 +347,7 @@ export function demoSeedStatements(db, restaurantId, now, displayName = 'مطع�
     '970599123456', '+970 59 912 3456', 'hello@example.com',
     'غزة — شارع الوحدة، مقابل حديقة البلدية', 'Gaza — Al Wehda St., opposite the municipal park',
     'https://instagram.com/', 'https://facebook.com/',
+    '/site/img/demo/hero.webp', '/site/img/demo/hero.webp',
     now, restaurantId,
   ));
 
@@ -329,10 +357,10 @@ export function demoSeedStatements(db, restaurantId, now, displayName = 'مطع�
   ).bind(sid(restaurantId, 'hs', stat.key), restaurantId, stat.ar, stat.en, stat.icon, index, now)));
 
   CATEGORIES.forEach((category, index) => out.push(db.prepare(
-    `INSERT INTO categories (id, restaurant_id, name_ar, name_en, slug, icon, display_order, is_active, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+    `INSERT INTO categories (id, restaurant_id, name_ar, name_en, slug, icon, image_url, display_order, is_active, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
   ).bind(sid(restaurantId, 'cat', category.key), restaurantId, category.ar, category.en,
-    category.slug, category.icon, index, now)));
+    category.slug, category.icon, demoImage('category', category.key), index, now)));
 
   ITEMS.forEach((item, index) => {
     const id = sid(restaurantId, 'item', item.key);
@@ -341,13 +369,13 @@ export function demoSeedStatements(db, restaurantId, now, displayName = 'مطع�
       `INSERT INTO menu_items
        (id, restaurant_id, category_id, name_ar, name_en, description_ar, description_en,
         price_minor, old_price_minor, is_priced, badge_ar, badge_en, is_featured, is_available,
-        display_order, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+        image_url, display_order, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`,
     ).bind(
       id, restaurantId, sid(restaurantId, 'cat', item.cat), item.ar, item.en,
       item.dar || '', item.den || '', item.price || 0, item.old || 0,
       item.priced === false ? 0 : 1, item.badge_ar || '', item.badge_en || '',
-      item.featured || 0, index, now,
+      item.featured || 0, demoImage('dish', item.key), index, now,
     ));
     (item.variants || []).forEach(([ar, en, price], order) => out.push(db.prepare(
       `INSERT INTO menu_item_variants
@@ -365,12 +393,12 @@ export function demoSeedStatements(db, restaurantId, now, displayName = 'مطع�
     `INSERT INTO offers
      (id, restaurant_id, title_ar, title_en, description_ar, description_en,
       price_text_ar, price_text_en, old_price_text_ar, old_price_text_en,
-      price_minor, is_priced, display_order, is_active, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+      price_minor, is_priced, image_url, display_order, is_active, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
   ).bind(
     sid(restaurantId, 'off', offer.key), restaurantId, offer.ar, offer.en, offer.dar, offer.den,
     offer.price_ar || '', offer.price_en || '', offer.old_ar || '', offer.old_en || '',
-    offer.price || 0, offer.priced ? 1 : 0, index, now,
+    offer.price || 0, offer.priced ? 1 : 0, demoImage('offer', offer.key), index, now,
   )));
 
   SERVICES.forEach((service, index) => out.push(db.prepare(
