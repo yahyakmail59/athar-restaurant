@@ -282,6 +282,26 @@ await check('the order endpoint the cart posts to works from every page', async 
       assert.equal(cta, '/r/adana-demo/menu/',
         `رابط تصفح القائمة في ${path} = ${cta} — يجب أن يكون مطلقًا`);
     }
+
+    // الشعار: كان `#top` في الرئيسية فيلوّث العنوان بمرساة لا تنتقل، و`./`
+    // في صفحة المنيو فيبقيك فيها بدل العودة للرئيسية.
+    const brand = /<a class="brand" href="([^"]*)"/.exec(html)?.[1];
+    assert.equal(brand, '/r/adana-demo/', `رابط الشعار في ${path} = ${brand}`);
+
+    // نموذج الحجز يظهر في الرئيسية وحدها، لكن حين يظهر يجب أن يُرسل إلى
+    // مسار المطعم لا إلى مسار الصفحة.
+    const action = /<form class="reservation-form" method="post" action="([^"]*)"/.exec(html)?.[1];
+    if (action !== undefined) {
+      assert.equal(action, '/r/adana-demo/reservation/', `وجهة نموذج الحجز في ${path} = ${action}`);
+    }
+
+    // ترويسة صفحة المنيو: كان `base` يُمرَّر فارغًا فصار «الرئيسية» رابطًا
+    // فارغًا يعيد تحميل الصفحة نفسها، و«اتصل بنا» يشير إلى قسم غير موجود هنا.
+    if (path.includes('/menu')) {
+      assert.ok(!/<a href="">/.test(html), `رابط فارغ في ترويسة ${path}`);
+      assert.ok(html.includes('href="/r/adana-demo/#contact"'),
+        `«اتصل بنا» في ${path} لا يشير إلى قسم الاتصال في الرئيسية`);
+    }
   }
 });
 

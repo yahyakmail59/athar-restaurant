@@ -110,6 +110,22 @@ function schemaOrgTag(settings, lang, homeUrl) {
   return JSON.stringify(payload).replace(/</g, '\\u003c');
 }
 
+/**
+ * `base` هو مسار المطعم المطلق (`/r/{slug}/`) لا نصًّا فارغًا.
+ *
+ * كان يُمرَّر `''`، فصار رابط «الرئيسية» في صفحة المنيو `href=""` — وهو إعادة
+ * تحميل الصفحة نفسها لا انتقالًا — و«اتصل بنا» يشير إلى `#contact` وهو قسم
+ * لا وجود له خارج الصفحة الرئيسية. رابطان ميتان في ترويسة كل صفحة منيو.
+ */
+/**
+ * مسار المطعم مضمونًا بشرطة مائلة أخيرة.
+ *
+ * الصفحة تُخدم بشرطة وبدونها معًا (كلاهما 200 بلا تحويل)، وكل عنوان نسبي
+ * ينكسر على الشكل الذي بلا شرطة لأن المتصفح يُسقط آخر مقطع. فكل رابط في
+ * القالب يُبنى على هذه القيمة لا على مسار الصفحة الحالية.
+ */
+const withSlash = (base) => (String(base || '/').endsWith('/') ? String(base || '/') : `${base}/`);
+
 function headerNav(base, lang, settings, isMenuPage, bestSellers, offers) {
   const t = (ar, en) => (lang === 'ar' ? ar : en);
   if (isMenuPage) {
@@ -145,7 +161,7 @@ export function layout({ settings, lang, title, description, body, canonical = '
   //    أكثر الزبائن.
   //  - `homeUrl` لا تمرّره `renderMenu`، فالاعتماد عليه يعطي `/order/` بلا
   //    اسم المطعم فيسقط الطلب من *كل* صفحة. `base` تمرّره الصفحتان كلتاهما.
-  const baseUrl = base.endsWith('/') ? base : `${base}/`;
+  const baseUrl = withSlash(base);
   const orderUrlAttr = `${baseUrl}order/`;
   const menuUrlAttr = `${baseUrl}menu/`;
   const name = bi(settings, 'name', lang);
@@ -179,7 +195,7 @@ ${themeLayer ? `<link rel="stylesheet" href="${themeLayer}">` : ''}
 
 <header class="site-header" id="top">
 <div class="page-shell header-inner">
-<a class="brand" href="${isMenuPage ? base_(settings) : '#top'}" aria-label="${escapeHtml(name)}">
+<a class="brand" href="${escapeHtml(baseUrl)}" aria-label="${escapeHtml(name)}">
 ${settings.logo_url ? `<img src="${escapeHtml(settings.logo_url)}" alt="${escapeHtml(name)}" width="890" height="810">`
     : `<span class="brand-wordmark">${escapeHtml(name)}</span>`}
 </a>
@@ -190,7 +206,7 @@ ${settings.logo_url ? `<img src="${escapeHtml(settings.logo_url)}" alt="${escape
 <i class="nav-icon-close" data-lucide="x" aria-hidden="true"></i>
 </button>
 <nav id="main-nav" class="main-nav" aria-label="${t('التنقل الرئيسي', 'Primary navigation')}">
-${headerNav('', lang, settings, isMenuPage, bestSellers, offers)}
+${headerNav(baseUrl, lang, settings, isMenuPage, bestSellers, offers)}
 </nav>
 <div class="header-actions">
 <div class="language-switch" role="group" aria-label="${t('اختيار اللغة', 'Choose language')}">
@@ -330,11 +346,11 @@ box.innerHTML='<div class="message '+(kind.indexOf('ok_')===0?'success':'error')
 </html>`;
 }
 
-const base_ = () => './';
 
 /* ==================== الصفحة الرئيسية (home.html) ==================== */
 
 export function renderHome(site, { lang, base, canonical = '', homeUrl = '' }) {
+  const baseUrl = withSlash(base);
   const s = site.settings;
   const currency = s.currency || '₪';
   const t = (ar, en) => (lang === 'ar' ? ar : en);
@@ -450,7 +466,7 @@ ${site.services.length ? site.services.map((service) => `<article class="service
 <div class="page-shell">
 <div class="section-title"><span class="red-streak"></span><div><h2>${escapeHtml(bi(s, 'reservation_title', lang))}</h2><p>${escapeHtml(miniLabel(s, 'reservation_title', lang))}</p></div></div>
 <div class="reservation-box reveal">
-${reservationForm(s, lang)}
+${reservationForm(s, lang, baseUrl)}
 <div class="contact-card">
 <p class="reservation-intro">${escapeHtml(bi(s, 'reservation_text', lang))}</p>
 <div class="contact-row"><i data-lucide="map-pin"></i><span><b>${t('العنوان', 'Address')}</b><small>${escapeHtml(bi(s, 'address', lang))}</small></span></div>
@@ -534,7 +550,7 @@ ${site.socialPosts.slice(0, 6).map((post) => {
 </section>`);
   }
 
-  parts.push(footer(s, lang, true));
+  parts.push(footer(s, lang, true, baseUrl));
 
   return layout({
     settings: s, lang, isMenuPage: false, bestSellers, offers: site.offers, canonical, homeUrl, base,
@@ -553,9 +569,9 @@ const instagramIcon = () => '<svg viewBox="0 0 24 24" width="20" height="20" fil
 const facebookIcon = () => '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">'
   + '<path d="M22 12a10 10 0 1 0-11.56 9.88v-6.99H7.9V12h2.54V9.8c0-2.5 1.5-3.89 3.78-3.89 1.1 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56V12h2.78l-.45 2.89h-2.33v6.99A10 10 0 0 0 22 12z"/></svg>';
 
-function reservationForm(s, lang) {
+function reservationForm(s, lang, baseUrl) {
   const t = (ar, en) => (lang === 'ar' ? ar : en);
-  return `<form class="reservation-form" method="post" action="reservation/">
+  return `<form class="reservation-form" method="post" action="${escapeHtml(baseUrl)}reservation/">
 <div class="form-grid">
 <label><span>${t('الاسم الكامل', 'Full name')}</span><input type="text" name="full_name" id="id_full_name" required maxlength="150" autocomplete="name"></label>
 <label><span>${t('رقم الجوال', 'Phone number')}</span><input type="text" name="phone" id="id_phone" required autocomplete="tel" inputmode="tel"></label>
@@ -571,7 +587,7 @@ function reservationForm(s, lang) {
 </form>`;
 }
 
-function footer(s, lang, showCategories) {
+function footer(s, lang, showCategories, baseUrl) {
   const t = (ar, en) => (lang === 'ar' ? ar : en);
   const compact = !on(s.show_featured) || !on(s.show_categories);
   return `<footer class="site-footer">
@@ -590,7 +606,7 @@ ${s.instagram_url ? `<a class="social-instagram" href="${escapeHtml(s.instagram_
 ${on(s.show_about) ? `<a href="./#about">${t('من نحن', 'About us')}</a>` : ''}
 ${on(s.show_featured) ? `<a href="./menu/">${t('المنيو الكامل', 'Full menu')}</a>` : ''}
 ${on(s.show_offers) ? `<a href="./#offers">${t('العروض', 'Offers')}</a>` : ''}
-${on(s.show_reservation) ? `<a href="./#contact">${t('تواصل معنا', 'Contact us')}</a>` : ''}
+${on(s.show_reservation) ? `<a href="${escapeHtml(baseUrl)}#contact">${t('تواصل معنا', 'Contact us')}</a>` : ''}
 </div>
 ${showCategories && on(s.show_featured) && on(s.show_categories) ? '' : ''}
 <div><h3>${t('تواصل معنا', 'Contact us')}</h3><a href="tel:${escapeHtml(String(s.phone || '').replace(/\s/g, ''))}">${escapeHtml(s.phone || '')}</a>
