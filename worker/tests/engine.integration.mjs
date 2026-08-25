@@ -615,6 +615,37 @@ await check('/api/meta exposes the same font and icon registries the server vali
   assert.ok(body.icons.categories.some(([key]) => key === 'skewer'), 'skewer missing from the category icon list');
 });
 
+// ما كسر عند المستخدم فعلًا: اللوحة تحفظ وتقول «حُفظت»، والموقع العام لا
+// يتغيّر. الفحوص السابقة تتحقق من الحفظ في القاعدة أو من الهوية الجاهزة عند
+// الإنشاء؛ لا شيء كان يتتبّع طريق «حفظ من اللوحة ← صفحة الزائر».
+await check('saving colours and fonts from the panel reaches the public page', async () => {
+  const response = await authed('/api/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      primary_color: '#1A7F5A', theme_layer: 'luxury', arabic_font: 'tajawal',
+    }),
+  });
+  assert.equal(response.status, 200);
+
+  const page = await (await call('/r/adana-demo/')).text();
+  assert.ok(page.includes('#1A7F5A'), 'the saved colour never reached the page');
+  assert.ok(page.includes('themes/luxury.css'), 'the saved theme layer never reached the page');
+  assert.ok(page.includes('Tajawal'), 'the saved font never reached the page');
+});
+
+// عمود `theme` بقي من تصميم أسبق ولا يقرؤه المولّد. قبوله بصمت يجعل اللوحة
+// تَعِد بنمط فاتح لا وجود له — وهو بالضبط ما جرّبه المستخدم ولم ينجح.
+await check('the unbuilt light theme is refused instead of silently accepted', async () => {
+  const response = await authed('/api/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ theme: 'light' }),
+  });
+  assert.equal(response.status, 422);
+  assert.equal((await response.json()).error, 'THEME_NOT_SETTABLE');
+});
+
 await check('an invalid colour is refused instead of landing in the stylesheet', async () => {
   const response = await authed('/api/settings', {
     method: 'POST',
@@ -850,6 +881,20 @@ await check('the menu plan sends via WhatsApp instead of saving to the database'
   const after = await db.prepare('SELECT COUNT(*) AS count FROM orders WHERE restaurant_id = ?')
     .bind(demo.external_tenant_id).first();
   assert.equal(Number(after.count), Number(before.count), 'the menu plan wrote an order row anyway');
+
+  // على هذه الباقة رسالة واتساب هي الطلب كلّه: لا سجل ولا صفحة متابعة. رسالة
+  // بلا أسعار ولا مجموع تعني أن المطعم يحسب فاتورته بيده في كل طلب. الفحص
+  // القديم اكتفى بوجود اسم الصنف فمرّ العيب.
+  const message = decodeURIComponent(body.whatsapp_url);
+  const item = await db.prepare('SELECT price_minor FROM menu_items WHERE id = ?')
+    .bind(createdItemId).first();
+  const price = (Number(item.price_minor) / 100).toFixed(2);
+  // يجب أن يحمل *سطر الصنف نفسه* سعره، لا أن يظهر الرقم في المجموع وحده:
+  // بصنف واحد يتساوى السطر والمجموع، فالتحقق من وجود الرقم مجردًا يمرّ
+  // حتى لو حُذفت أسعار السطور كلها. الفاصلة « — » هي ما يميّز السطر المسعَّر.
+  assert.match(message, new RegExp(`× [^\\n]+ — ${price.replace('.', '\\.')}`),
+    `سعر الصنف مفقود من سطره في رسالة واتساب:\n${message}`);
+  assert.ok(message.includes('المجموع:'), `المجموع مفقود من رسالة واتساب:\n${message}`);
 });
 
 await check('the menu plan cannot take reservations', async () => {

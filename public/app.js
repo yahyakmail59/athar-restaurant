@@ -207,7 +207,7 @@ async function bootstrap() {
 
   $('login-view').hidden = true;
   $('app-view').hidden = false;
-  $('restaurant-name').textContent = info.restaurant.name;
+  $('restaurant-name').textContent = `لوحة التحكم — ${info.restaurant.name}`;
   $('public-link').href = info.restaurant.public_url;
   $('foot-name').textContent = `${info.restaurant.name} — لوحة أثر`;
 
@@ -996,7 +996,6 @@ const IDENTITY_GROUPS = [
     ['gold_color', 'اللون الثانوي', 'color'],
     ['background_color', 'لون الخلفية', 'color'],
     ['surface_color', 'لون البطاقات', 'color'],
-    ['theme', 'النمط', 'theme'],
     ['theme_layer', 'طبقة الثيم الإضافية', 'themelayer'],
     ['arabic_font', 'الخط العربي (نص الجسم)', 'font:arabic'],
     ['arabic_display_font', 'الخط العربي (العناوين)', 'font:arabic_display'],
@@ -1059,14 +1058,6 @@ function identityField(name, label, type, value) {
       id: `s-${name}`, type: 'color', value: /^#[0-9a-fA-F]{6}$/.test(value || '') ? value : '#000000',
       dataset: { name, type: 'text' },
     }));
-    return wrap;
-  }
-  if (type === 'theme') {
-    const wrap = el('div', { className: 'field' }, [el('label', { htmlFor: `s-${name}`, textContent: label })]);
-    wrap.append(el('select', { id: `s-${name}`, dataset: { name, type: 'text' } }, [
-      el('option', { value: 'dark', textContent: 'داكن', selected: value !== 'light' }),
-      el('option', { value: 'light', textContent: 'فاتح', selected: value === 'light' }),
-    ]));
     return wrap;
   }
   if (type === 'themelayer') {

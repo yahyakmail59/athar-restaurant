@@ -324,7 +324,7 @@ export async function publicOrder(request, env, restaurant, settings, body, lang
 
   if (!planAllows(restaurant.plan_code, 'orders')) {
     const { lines } = await priceCartLines(env, restaurant.restaurant_id, body.items, lang);
-    const summary = lines.map((line) => `• ${line.quantity} × ${line.name_ar}`).join('\n');
+    const summary = orderSummaryText(lines, settings.currency || '₪', lang);
     const message = `${lang === 'ar' ? 'طلب جديد' : 'New order'}\n${summary}`
       + (name ? `\n${lang === 'ar' ? 'الاسم' : 'Name'}: ${name}` : '')
       + (phone ? `\n${lang === 'ar' ? 'الهاتف' : 'Phone'}: ${phone}` : '')
@@ -345,7 +345,7 @@ export async function publicOrder(request, env, restaurant, settings, body, lang
   // `.../order/`، وحلّ عنوان نسبي عليه يضيف `o/{token}/` *داخل* `order/`
   // بدل مساواتها بجذر الموقع — كسر اكتُشف بتجربة طلب حقيقي على الإنتاج.
   const orderUrl = new URL(`o/${order.token}/`, homeUrl).toString();
-  const summary = order.lines.map((line) => `• ${line.quantity} × ${line.name_ar}`).join('\n');
+  const summary = orderSummaryText(order.lines, settings.currency || '₪', lang);
   const message = `${lang === 'ar' ? 'طلب جديد' : 'New order'} ${order.code}\n${summary}\n${orderUrl}`;
 
   return json({
@@ -451,3 +451,27 @@ export const orderSummaryHtml = (lines, currency) => lines
   .map((line) => `${line.quantity} × ${escapeHtml(line.name_ar)} — ${
     Number(line.is_priced) ? money(line.unit_price_minor * line.quantity, currency) : line.price_note}`)
   .join('<br>');
+
+/**
+ * ملخّص الطلب نصًّا لرسالة واتساب — بالأسعار والمجموع.
+ *
+ * كان النص يحمل الكميات والأسماء وحدها، فيصل المطعمَ طلبٌ بلا أي رقم.
+ * في باقة المنيو هذا كل ما يصله أصلًا (لا سجل ولا صفحة طلب)، فكان صاحب
+ * المطعم يحسب الفاتورة بيده في كل طلب. الأسعار كانت محسوبة سلفًا ومهملة.
+ *
+ * سطر بلا سعر رقمي (عرض بنص حر مثل «٢ بسعر ١») يُكتب بنصّه لا بصفر، ويُذيَّل
+ * المجموع بتنبيه أنه لا يشمله — المجموع الناقص الصامت أسوأ من غيابه.
+ */
+export function orderSummaryText(lines, currency, lang = 'ar') {
+  const body = lines.map((line) => `• ${line.quantity} × ${line.name_ar} — ${
+    Number(line.is_priced) ? money(line.unit_price_minor * line.quantity, currency) : line.price_note
+  }`).join('\n');
+  const total = lines.reduce((sum, line) =>
+    sum + (Number(line.is_priced) ? Number(line.unit_price_minor) * Number(line.quantity) : 0), 0);
+  const hasUnpriced = lines.some((line) => !Number(line.is_priced));
+  const label = lang === 'ar' ? 'المجموع' : 'Total';
+  const note = hasUnpriced
+    ? (lang === 'ar' ? ' (عدا ما يُسعَّر عند التأكيد)' : ' (excluding items quoted on confirmation)')
+    : '';
+  return `${body}\n${label}: ${money(total, currency)}${note}`;
+}
