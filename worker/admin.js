@@ -121,7 +121,11 @@ export async function me(env, session) {
     restaurant: {
       id: session.restaurant_id, name: session.name, slug: session.slug,
       plan_code: session.plan_code, environment: session.environment,
-      public_url: `/r/${session.slug}/`,
+      // مطلق حين يوجد نطاق: اللوحة تبني عليه روابط الإيصال والمتابعة، وهي
+      // تُفتح من `/admin` على نطاق المطعم حيث `/r/{slug}/` لا وجود له.
+      public_url: env.PUBLIC_SITE_DOMAIN
+        ? `https://${session.slug}.${String(env.PUBLIC_SITE_DOMAIN).toLowerCase()}/`
+        : `/r/${session.slug}/`,
     },
     user,
     settings: settings || {},

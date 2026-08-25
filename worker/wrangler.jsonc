@@ -6,13 +6,22 @@
   "workers_dev": true,
 
   // لوحة المطعم تُخدم من نفس الأصل مثل المحركين الآخرين: لا CORS.
-  // `run_worker_first` يشمل `/r/*` و`/img/*` لأنهما يُبنيان في الـWorker،
-  // ولو تُركا للأصول الساكنة لأعادا 404 قبل أن يصل الطلب إلى الشيفرة.
+  //
+  // `run_worker_first: true` بدل قائمة مسارات: على نطاق المطعم
+  // (`adana.athar.date`) الجذر هو موقع الزبون لا اللوحة، والقائمة تُقرَّر
+  // بالمسار وحده فلا تفرّق بين مضيف ومضيف. الـWorker يقرأ `Host` ثم يعيد
+  // ما هو ساكن إلى `env.ASSETS` بنفسه.
   "assets": {
     "directory": "../public",
     "binding": "ASSETS",
-    "run_worker_first": ["/api/*", "/internal/*", "/r/*", "/img/*"]
+    "run_worker_first": true
   },
+
+  // كل نطاق فرعي مطعمٌ. `console.athar.date` أخصّ فتسبقه قاعدة لوحة أثر،
+  // وكلاودفلير يختار الأخصّ عند التعارض.
+  "routes": [
+    { "pattern": "*.athar.date/*", "zone_name": "athar.date" }
+  ],
 
   "d1_databases": [
     {
@@ -32,7 +41,10 @@
   ],
 
   "vars": {
-    "PUBLIC_APP_URL": "https://athar-restaurant-api.yahyakmail59.workers.dev/"
+    "PUBLIC_APP_URL": "https://athar-restaurant-api.yahyakmail59.workers.dev/",
+    // وجود هذه القيمة هو ما يفعّل نطاق كل مطعم. إفراغها يعيد كل شيء إلى
+    // `/r/{slug}/` بلا تعديل شيفرة — مخرج إن ساء شيء في النطاق.
+    "PUBLIC_SITE_DOMAIN": "athar.date"
   },
 
   "observability": {

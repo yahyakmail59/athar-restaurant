@@ -132,9 +132,19 @@ async function ownerPassword(secret, requestId, tenantId) {
   return bytesToHex(bytes).slice(0, 12);
 }
 
+/**
+ * الرابط الذي تعرضه لوحة أثر لصاحب المطعم.
+ *
+ * يفضّل النطاق الفرعي (`https://adana.athar.date/`) متى ضُبط `PUBLIC_SITE_DOMAIN`،
+ * ويعود إلى المسار القديم بدونه. هذا هو الرابط الذي يُنسخ ويُطبع ويوضع في
+ * إنستغرام، فالأولى أن يكون الأنظف لا الأقدم.
+ */
 function publicSiteUrl(env, slug) {
+  if (!slug) return '';
+  const domain = str(env.PUBLIC_SITE_DOMAIN, 200).trim().toLowerCase();
+  if (domain) return `https://${slug}.${domain}/`;
   const base = str(env.PUBLIC_APP_URL, 300).trim();
-  if (!base || !slug) return '';
+  if (!base) return '';
   try {
     return new URL(`r/${slug}/`, base).toString();
   } catch {

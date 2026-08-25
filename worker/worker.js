@@ -43,9 +43,54 @@ const html = (markup, status = 200, cache = 'no-store') => new Response(markup, 
 
 const langOf = (url) => (url.searchParams.get('lang') === 'en' ? 'en' : 'ar');
 
+/**
+ * نطاقات فرعية لا تخصّ مطعمًا مهما بدت كذلك.
+ *
+ * `console` للوحة أثر، والبقية أسماء تتوقّعها الأدوات والبريد والشهادات.
+ * بلا هذه القائمة يكفي إنشاء مطعم باسم `www` لخطف نطاق عام.
+ */
+const RESERVED_SUBDOMAINS = new Set([
+  'www', 'console', 'panel', 'admin', 'api', 'app', 'mail', 'smtp', 'ftp', 'ns1', 'ns2',
+]);
+
+/**
+ * اسم المطعم من ترويسة `Host` حين يُخدَم من نطاق أثر.
+ *
+ * `adana.athar.date` أنظف من `.../r/adana/`، وأصلح لأن يُطبع على لافتة، ويجعل
+ * موقع كل مطعم أصلًا مستقلًّا في نظر المتصفح ومحركات البحث.
+ *
+ * المسار القديم يبقى عاملًا: مطاعم قائمة تعرف رابطها وقد نشرته، وكسره
+ * لتحسين في الشكل لا يُقبل.
+ */
+function tenantFromHost(request, env) {
+  const domain = String(env.PUBLIC_SITE_DOMAIN || '').trim().toLowerCase();
+  if (!domain) return '';
+  const host = String(request.headers.get('Host') || '').toLowerCase().split(':')[0];
+  const suffix = `.${domain}`;
+  if (!host.endsWith(suffix)) return '';
+  const label = host.slice(0, -suffix.length);
+  if (!label || label.includes('.') || RESERVED_SUBDOMAINS.has(label)) return '';
+  return /^[a-z0-9-]{1,60}$/.test(label) ? label : '';
+}
+
+/**
+ * لوحة المطعم على `/admin` فوق نطاق المطعم.
+ *
+ * الجذر هناك هو موقع الزبون، فاللوحة تحتاج مسارًا خاصًّا بها. يُحذف `/admin`
+ * قبل تمرير الطلب إلى الأصول، فتبقى إشارات `index.html` النسبية عاملة سواء
+ * فُتح العنوان بشرطة أخيرة أو بدونها.
+ */
+function servePanel(request, env, path) {
+  if (!env.ASSETS) return new Response('Not found', { status: 404 });
+  const rewritten = new URL(request.url);
+  const rest = path.slice('/admin'.length);
+  rewritten.pathname = !rest || rest === '/' ? '/index.html' : rest;
+  return env.ASSETS.fetch(new Request(rewritten.toString(), request));
+}
+
 /* ==================== الموقع العام ==================== */
 
-async function handlePublic(request, env, slug, rest) {
+async function handlePublic(request, env, slug, rest, base) {
   const url = new URL(request.url);
   const restaurant = await resolveRestaurant(env, slug);
 
@@ -55,7 +100,6 @@ async function handlePublic(request, env, slug, rest) {
     return simplePage('الصفحة غير متاحة', 'تعذّر الوصول إلى هذا الموقع حاليًا.', 404);
   }
 
-  const base = `/r/${restaurant.slug}/`;
   const homeUrl = new URL(base, url.origin).toString();
   const lang = langOf(url);
 
@@ -118,13 +162,13 @@ async function handlePublic(request, env, slug, rest) {
   if (rest === '' || rest === 'index.html') {
     site.bestSellers = await loadBestSellers(env, restaurant.restaurant_id);
     const canonical = new URL(base, url.origin).toString();
-    return html(renderHome(site, { lang, base, canonical, homeUrl }), 200, 'public, max-age=60');
+    return html(renderHome(site, { lang, base, canonical, homeUrl, slug: restaurant.slug }), 200, 'public, max-age=60');
   }
   if (rest === 'menu/' || rest === 'menu') {
     site.bestSellers = await loadBestSellers(env, restaurant.restaurant_id);
     const activeCategory = str(url.searchParams.get('category') || 'all', 60);
     const canonical = new URL(`${base}menu/`, url.origin).toString();
-    return html(renderMenu(site, { lang, base, canonical, activeCategory }), 200, 'public, max-age=60');
+    return html(renderMenu(site, { lang, base, canonical, activeCategory, slug: restaurant.slug }), 200, 'public, max-age=60');
   }
   return simplePage('الصفحة غير موجودة', 'تحقق من الرابط.', 404);
 }
@@ -223,13 +267,23 @@ export default {
 
     try {
       if (path.startsWith('/img/')) return await serveImage(env, path);
+      if (path.startsWith('/api/')) return await handleApi(request, env);
+
+      // نطاق المطعم: الجذر موقعه، و`/admin` لوحته، و`/site/` الأصول المشتركة.
+      const tenantSlug = tenantFromHost(request, env);
+      if (tenantSlug) {
+        if (path === '/admin' || path.startsWith('/admin/')) return servePanel(request, env, path);
+        if (path.startsWith('/site/')) {
+          return env.ASSETS ? env.ASSETS.fetch(request) : new Response('Not found', { status: 404 });
+        }
+        return await handlePublic(request, env, tenantSlug, str(path.replace(/^\//, ''), 200), '/');
+      }
 
       const publicMatch = path.match(/^\/r\/([a-z0-9-]{1,60})\/?(.*)$/);
       if (publicMatch) {
-        return await handlePublic(request, env, publicMatch[1], str(publicMatch[2], 200));
+        return await handlePublic(request, env, publicMatch[1], str(publicMatch[2], 200),
+          `/r/${publicMatch[1]}/`);
       }
-
-      if (path.startsWith('/api/')) return await handleApi(request, env);
     } catch (error) {
       if (error instanceof HttpError) {
         // صفحات تُعرَض بالمتصفح (GET) تحصل على صفحة عذر بالعربية؛ نداءات

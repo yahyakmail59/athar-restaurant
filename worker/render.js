@@ -362,7 +362,7 @@ box.innerHTML='<div class="message '+(kind.indexOf('ok_')===0?'success':'error')
 
 /* ==================== الصفحة الرئيسية (home.html) ==================== */
 
-export function renderHome(site, { lang, base, canonical = '', homeUrl = '' }) {
+export function renderHome(site, { lang, base, canonical = '', homeUrl = '', slug = '' }) {
   const baseUrl = withSlash(base);
   const s = site.settings;
   const currency = s.currency || '₪';
@@ -563,7 +563,7 @@ ${site.socialPosts.slice(0, 6).map((post) => {
 </section>`);
   }
 
-  parts.push(footer(s, lang, true, baseUrl));
+  parts.push(footer(s, lang, true, baseUrl, slug));
 
   return layout({
     settings: s, lang, isMenuPage: false, bestSellers, offers: site.offers, canonical, homeUrl, base,
@@ -613,18 +613,19 @@ function reservationForm(s, lang, baseUrl) {
  * ولا يُمرَّر اسم مستخدم ولا كلمة مرور بحال: الزر يختصر خانة واحدة فقط،
  * ويبقى الدخول كاملًا كما هو.
  */
-function adminLink(baseUrl, lang) {
-  // `/r/{slug}/` — آخر مقطع هو الـslug.
-  const slug = String(baseUrl).split('/').filter(Boolean).pop() || '';
+function adminLink(baseUrl, lang, slug) {
+  // على نطاق المطعم الجذر موقعُ الزبون واللوحة على `/admin/`؛ وعلى المسار
+  // القديم (`/r/{slug}/`) اللوحة في جذر المحرك. الفارق يُقرأ من `base` نفسه.
+  const panel = baseUrl === '/' ? '/admin/' : '/';
   const label = lang === 'ar' ? 'الإدارة' : 'Management';
-  return `<a class="footer-admin" href="/#r=${encodeURIComponent(slug)}" rel="nofollow noopener">`
+  return `<a class="footer-admin" href="${panel}#r=${encodeURIComponent(slug || '')}" rel="nofollow noopener">`
     + '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" '
     + 'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
     + '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
     + `<span>${escapeHtml(label)}</span></a>`;
 }
 
-function footer(s, lang, showCategories, baseUrl) {
+function footer(s, lang, showCategories, baseUrl, slug) {
   const t = (ar, en) => (lang === 'ar' ? ar : en);
   const compact = !on(s.show_featured) || !on(s.show_categories);
   return `<footer class="site-footer">
@@ -650,7 +651,7 @@ ${showCategories && on(s.show_featured) && on(s.show_categories) ? '' : ''}
 ${s.email ? `<a href="mailto:${escapeHtml(s.email)}">${escapeHtml(s.email)}</a>` : ''}<span>${escapeHtml(bi(s, 'address', lang))}</span></div>
 </div>
 <div class="page-shell footer-bottom"><span>© ${new Date().getFullYear()} ${escapeHtml(s.name_en || s.name_ar)}. ${t('جميع الحقوق محفوظة.', 'All rights reserved.')}</span>
-${adminLink(baseUrl, lang)}</div>
+${adminLink(baseUrl, lang, slug)}</div>
 </footer>`;
 }
 
@@ -815,7 +816,7 @@ ${item.image_url ? `<img src="${escapeHtml(item.image_url)}" alt="${escapeHtml(b
 
 /* ==================== صفحة المنيو (menu.html) ==================== */
 
-export function renderMenu(site, { lang, base, canonical = '', activeCategory = 'all' }) {
+export function renderMenu(site, { lang, base, canonical = '', activeCategory = 'all', slug = '' }) {
   const s = site.settings;
   const currency = s.currency || '₪';
   const t = (ar, en) => (lang === 'ar' ? ar : en);

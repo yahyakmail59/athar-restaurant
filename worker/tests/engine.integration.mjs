@@ -342,6 +342,52 @@ await check('no public page carries the internal restaurant id', async () => {
   assert.ok(!item.id.includes(row.restaurant_id), `معرّف الصنف ما زال يحمله: ${item.id}`);
 });
 
+await check('a restaurant is served from its own subdomain', async () => {
+  // `adana.athar.date` بدل `.../r/adana/`. الفحص يضبط الترويسة يدويًا لأن
+  // `env.PUBLIC_SITE_DOMAIN` وحده لا يكفي — القرار يُتخذ من `Host`.
+  const withHost = (path) => worker.fetch(
+    new Request(`https://adana-demo.athar.test${path}`, { headers: { Host: 'adana-demo.athar.test' } }),
+    { ...env, PUBLIC_SITE_DOMAIN: 'athar.test' },
+  );
+
+  const home = await withHost('/');
+  assert.equal(home.status, 200, 'الجذر على نطاق المطعم لا يعرض موقعه');
+  const html = await home.text();
+  assert.ok(html.includes('مطعم أضنة'), 'اسم المطعم مفقود');
+
+  // كل رابط في القالب يجب أن يصير جذريًّا هنا، لا `/r/...`.
+  assert.ok(html.includes('data-order-url="/order/"'),
+    `مسار الطلب لم يتبع النطاق: ${/data-order-url="([^"]*)"/.exec(html)?.[1]}`);
+  assert.ok(!html.includes('/r/adana-demo/'), 'مسار المطعم القديم ما زال في الصفحة');
+  assert.ok(html.includes('href="/admin/#r=adana-demo"'),
+    `زر الإدارة لا يشير إلى لوحة النطاق: ${/class="footer-admin" href="([^"]*)"/.exec(html)?.[1]}`);
+
+  assert.equal((await withHost('/menu/')).status, 200, 'صفحة المنيو لا تُخدم');
+  // اللوحة على `/admin` والأصول المشتركة تمر كما هي.
+  assert.equal((await withHost('/admin/')).status, 200, 'اللوحة لا تُخدم على /admin');
+  assert.equal((await withHost('/site/js/main.js')).status, 200, 'أصول الموقع لا تمر');
+
+  // نطاق محجوز لا يُعامل كمطعم. لا يعني هذا أنه يردّ خطأً — يسلك طريق
+  // اللوحة كأي مضيف غير مستأجر — بل أنه لا يعرض موقع مطعم اسمه `www`.
+  const reserved = await worker.fetch(
+    new Request('https://www.athar.test/', { headers: { Host: 'www.athar.test' } }),
+    { ...env, PUBLIC_SITE_DOMAIN: 'athar.test' },
+  );
+  assert.ok(!(await reserved.text()).includes('مطعم أضنة'), '`www` عُومل كمطعم');
+});
+
+await check('the old path keeps working after the domain is added', async () => {
+  // مطاعم قائمة نشرت رابطها القديم. إضافة النطاق لا يجوز أن تكسره.
+  const response = await worker.fetch(
+    new Request(`${ORIGIN}/r/adana-demo/`),
+    { ...env, PUBLIC_SITE_DOMAIN: 'athar.test' },
+  );
+  assert.equal(response.status, 200, 'المسار القديم انكسر بإضافة النطاق');
+  const html = await response.text();
+  assert.ok(html.includes('data-order-url="/r/adana-demo/order/"'),
+    'المسار القديم فقد بادئته');
+});
+
 await check('the demo site shows dish, offer and hero images', async () => {
   // النسخة التجريبية هي ما يُعرض على العميل قبل الشراء: منيو بلا صور يبيع
   // أقل، وهذا سبب وجود الصور أصلًا. الفحص يقرأ الصفحة المولَّدة لا البذرة،
