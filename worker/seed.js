@@ -20,8 +20,29 @@ export const DEMO_SEED_VERSION = 'restaurant-demo-1';
 
 const DAY = 24 * 60 * 60 * 1000;
 
+/**
+ * بصمة قصيرة للمطعم داخل المعرّفات — لا `restaurant_id` نفسه.
+ *
+ * كان المعرّف `item_ATH_ADANA_mixgrill`، وهو يظهر في `data-id` لكل زر إضافة،
+ * فينشر معرّف المطعم عشرات المرات في كل صفحة عامة. المعرّف ليس سرًّا تحميه
+ * الحماية (كلمة المرور والقفل بعد المحاولات هما الحماية)، لكن نشره يسلّم
+ * بلا مقابل أحد الحقول الثلاثة التي يملؤها المهاجم في شاشة الدخول.
+ *
+ * FNV-1a لا SHA: التوليد يجب أن يكون متزامنًا لأن البذرة تبني جُملها دفعةً
+ * واحدة، و`crypto.subtle` غير متزامن. وليست الغاية سرًّا معمًّى — بل ألّا
+ * يُقرأ المعرّف من الصفحة نسخًا ولصقًا.
+ */
+const fingerprint = (restaurantId) => {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < restaurantId.length; index += 1) {
+    hash ^= restaurantId.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash.toString(36).padStart(7, '0');
+};
+
 /** معرّف ثابت: نفس البذرة تعطي نفس المفاتيح، فإعادة البذر لا تضاعف الصفوف. */
-const sid = (restaurantId, kind, key) => `${kind}_${restaurantId}_${key}`;
+const sid = (restaurantId, kind, key) => `${kind}_${fingerprint(restaurantId)}_${key}`;
 
 /* ==================== النسخة الحقيقية ==================== */
 

@@ -311,11 +311,6 @@ await check('the management link carries the slug only, and the slug can sign in
   assert.equal(href, '/#r=adana-demo', `رابط الإدارة = ${href}`);
 
   const row = await db.prepare("SELECT restaurant_id FROM restaurants WHERE slug = 'adana-demo'").first();
-  // الرابط نفسه لا يحمل المعرّف الداخلي ولا أي بيانات اعتماد.
-  //
-  // ملاحظة: لا يفحص هذا خلوّ *الصفحة* من المعرّف، لأنها ليست خالية منه —
-  // `sid()` تبنيه داخل معرّف كل صنف وعرض، فيظهر عشرات المرات في كل صفحة.
-  // تسريب قائم قبل هذا الزر ومستقل عنه، وإصلاحه يمسّ توليد المعرّفات كلها.
   assert.ok(!href.includes(row.restaurant_id), 'رابط الإدارة يحمل المعرّف الداخلي');
   assert.ok(!/password|secret|كلمة/i.test(href), 'رابط الإدارة يحمل بيانات اعتماد');
 
@@ -328,6 +323,23 @@ await check('the management link carries the slug only, and the slug can sign in
   assert.equal(bySlug.status, 200, 'الدخول بالـslug مرفوض');
   const body = await bySlug.json();
   assert.equal(body.restaurant.id, row.restaurant_id, 'الردّ يعيد ما أُرسل بدل المعرّف الحقيقي');
+});
+
+await check('no public page carries the internal restaurant id', async () => {
+  // كان `sid()` يبني المعرّف داخل معرّف كل صنف وعرض، فيظهر في `data-id` لكل
+  // زر إضافة — ٦٨ مرة في صفحة واحدة على الإنتاج. الفحص يمشي على كل صفحة
+  // عامة لأن التسريب كان في القالب المشترك لا في صفحة بعينها.
+  const row = await db.prepare("SELECT restaurant_id FROM restaurants WHERE slug = 'adana-demo'").first();
+  for (const path of ['/r/adana-demo/', '/r/adana-demo/menu/']) {
+    const html = await (await call(path)).text();
+    assert.ok(!html.includes(row.restaurant_id),
+      `معرّف المطعم مسرَّب في ${path} — ${(html.match(new RegExp(row.restaurant_id, 'g')) || []).length} مرة`);
+  }
+  // ومع ذلك تبقى المعرّفات صالحة للطلب: إخفاؤها بلا إبقائها عاملةً كسرٌ لا إصلاح.
+  const item = await db.prepare(
+    "SELECT id FROM menu_items WHERE restaurant_id = ? AND is_priced = 1 LIMIT 1",
+  ).bind(row.restaurant_id).first();
+  assert.ok(!item.id.includes(row.restaurant_id), `معرّف الصنف ما زال يحمله: ${item.id}`);
 });
 
 await check('the demo site shows dish, offer and hero images', async () => {
