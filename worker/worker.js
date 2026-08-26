@@ -84,7 +84,11 @@ function servePanel(request, env, path) {
   if (!env.ASSETS) return new Response('Not found', { status: 404 });
   const rewritten = new URL(request.url);
   const rest = path.slice('/admin'.length);
-  rewritten.pathname = !rest || rest === '/' ? '/index.html' : rest;
+  // `/` لا `/index.html`: طبقة الأصول تُقنّن `/index.html` فتردّ 307 إلى `/`،
+  // و`/` على نطاق المطعم هو موقع الزبون — فتنتهي اللوحة بالتحويل إلى الموقع.
+  // طلب `/` من الأصول مباشرةً يعيد نفس الملف بلا تحويل، ولا تكرار لأن هذا
+  // نداء للأصول لا للـWorker.
+  rewritten.pathname = !rest || rest === '/' ? '/' : rest;
   return env.ASSETS.fetch(new Request(rewritten.toString(), request));
 }
 

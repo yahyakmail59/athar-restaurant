@@ -40,7 +40,18 @@ const env = {
   ASSETS_BUCKET: new FakeBucket(),
   ATHAR_ADAPTER_SECRET: SECRET,
   PUBLIC_APP_URL: `${ORIGIN}/`,
-  ASSETS: { fetch: async () => new Response('static', { status: 200 }) },
+  // تحاكي طبقة أصول كلاودفلير في سلوك واحد يهمّنا: `/index.html` تُقنَّن
+  // بتحويل 307 إلى `/`. بدون هذه المحاكاة كان الفحص يمرّ بينما `/admin/`
+  // على الإنتاج يحوّل الزائر إلى موقع الزبون بدل فتح اللوحة.
+  ASSETS: {
+    fetch: async (request) => {
+      const path = new URL(request.url).pathname;
+      if (path === '/index.html') {
+        return new Response(null, { status: 307, headers: { Location: '/' } });
+      }
+      return new Response(path === '/' ? '<title>لوحة التحكم</title>' : 'static', { status: 200 });
+    },
+  },
 };
 
 const call = (path, init = {}) => worker.fetch(new Request(`${ORIGIN}${path}`, init), env);
@@ -364,7 +375,10 @@ await check('a restaurant is served from its own subdomain', async () => {
 
   assert.equal((await withHost('/menu/')).status, 200, 'صفحة المنيو لا تُخدم');
   // اللوحة على `/admin` والأصول المشتركة تمر كما هي.
-  assert.equal((await withHost('/admin/')).status, 200, 'اللوحة لا تُخدم على /admin');
+  const panel = await withHost('/admin/');
+  assert.equal(panel.status, 200,
+    `اللوحة على /admin ردّت ${panel.status} → ${panel.headers.get('Location') || ''}`);
+  assert.ok((await panel.text()).includes('لوحة التحكم'), '/admin لا يعيد صفحة اللوحة');
   assert.equal((await withHost('/site/js/main.js')).status, 200, 'أصول الموقع لا تمر');
 
   // نطاق محجوز لا يُعامل كمطعم. لا يعني هذا أنه يردّ خطأً — يسلك طريق
