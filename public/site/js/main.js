@@ -40,14 +40,23 @@
 
     let storedValue = null;
     try { storedValue = window.localStorage.getItem(storageKey); } catch (_) { storedValue = null; }
+    // معرّفات هذا المحرك نصّية (`var_…`, `addon_…`) لا أرقامًا. وكان المرشّح
+    // يقبل الأرقام وحدها فيُسقط كل حجم وكل إضافة **بصمت**: تُحسب في العرض
+    // ولا تُرسَل. فيصل المطعم طلبٌ بالسعر الأساسي بلا حجم ولا إضافة —
+    // والزبون ينتظر ما اختاره. خسارة مال ونزاع مع الزبون في آنٍ.
+    //
+    // والتصفية تبقى: الخادم يبحث عن المعرّف في قاعدته ويتجاهل المجهول، لكن
+    // شكلًا آمنًا هنا يمنع إرسال نصّ عشوائي أصلًا.
+    const VALID_ID = /^[A-Za-z0-9_-]{1,120}$/;
+
     const storedCart = safeJSON(storedValue, []);
     let cart = Array.isArray(storedCart) ? storedCart
         .filter(item => item && typeof item === 'object')
         .map(item => {
             const id = String(item.id || '');
-            const variantId = /^\d+$/.test(String(item.variantId ?? '')) ? String(item.variantId) : null;
+            const variantId = VALID_ID.test(String(item.variantId ?? '')) ? String(item.variantId) : null;
             const addonIds = (Array.isArray(item.addonIds) ? item.addonIds : [])
-                .map(String).filter(addonId => /^\d+$/.test(addonId)).sort();
+                .map(String).filter(addonId => VALID_ID.test(addonId)).sort();
             return {
                 id,
                 cartKey: `${id}:${variantId || ''}:${addonIds.join(',')}`,
@@ -441,9 +450,9 @@
         const fixedPricePattern = /^\s*[\d٠-٩۰-۹]+(?:[.,٫][\d٠-٩۰-۹]{1,2})?\s*(?:₪|ILS|شيكل)?\s*$/i;
         const offerHasFixedPrice = isOffer && fixedPricePattern.test(activePriceText) && parsePrice(activePriceText) > 0;
 
-        const variantId = /^\d+$/.test(button.dataset.variantId || '') ? button.dataset.variantId : null;
+        const variantId = VALID_ID.test(button.dataset.variantId || '') ? button.dataset.variantId : null;
         const addonIds = parseJSONArray(button.dataset.addonIds)
-            .map(String).filter(id => /^\d+$/.test(id)).sort();
+            .map(String).filter(id => VALID_ID.test(id)).sort();
 
         return {
             id: String(button.dataset.id || ''),
