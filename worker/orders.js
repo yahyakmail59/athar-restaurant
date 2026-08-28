@@ -14,7 +14,7 @@
  */
 
 import {
-  HttpError, escapeHtml, json, money, num, orderCode, str,
+  HttpError, json, money, num, orderCode, str,
 } from './lib.js';
 import { planAllows } from './access.js';
 
@@ -447,10 +447,6 @@ export async function orderByToken(env, restaurantId, token) {
   return { order, lines: lines.results };
 }
 
-export const orderSummaryHtml = (lines, currency) => lines
-  .map((line) => `${line.quantity} × ${escapeHtml(line.name_ar)} — ${
-    Number(line.is_priced) ? money(line.unit_price_minor * line.quantity, currency) : line.price_note}`)
-  .join('<br>');
 
 /**
  * ملخّص الطلب نصًّا لرسالة واتساب — بالأسعار والمجموع.
@@ -461,11 +457,28 @@ export const orderSummaryHtml = (lines, currency) => lines
  *
  * سطر بلا سعر رقمي (عرض بنص حر مثل «٢ بسعر ١») يُكتب بنصّه لا بصفر، ويُذيَّل
  * المجموع بتنبيه أنه لا يشمله — المجموع الناقص الصامت أسوأ من غيابه.
+ *
+ * والحجم والإضافات تُكتَبان في السطر: الرسالة **هي** الطلب كلّه في باقة
+ * المنيو، فإن غاب الحجم وصل المطبخ «كباب أضنة» بلا حجم وبسعرٍ يخصّ الكبير،
+ * فيُطبخ الوسط ويُختلف على الفرق. والسعر وحده لا يُعلِم الطبّاخ بشيء.
+ *
+ * واللغة تُحترَم: كان الاسم العربي يُطبع حتى في الرسالة الإنجليزية.
  */
 export function orderSummaryText(lines, currency, lang = 'ar') {
-  const body = lines.map((line) => `• ${line.quantity} × ${line.name_ar} — ${
-    Number(line.is_priced) ? money(line.unit_price_minor * line.quantity, currency) : line.price_note
-  }`).join('\n');
+  const en = lang === 'en';
+  const body = lines.map((line) => {
+    const name = (en ? line.name_en || line.name_ar : line.name_ar) || '';
+    let addons = [];
+    // سطر بإضافات تالفة يُرسَل بلا إضافات بدل أن تسقط الرسالة كلّها.
+    try { addons = JSON.parse(line.addons_json || '[]'); } catch { /* تُتجاهَل */ }
+    const detail = [
+      line.variant_name_ar ? `(${line.variant_name_ar})` : '',
+      ...addons.map((addon) => `+ ${(en ? addon.name_en || addon.name_ar : addon.name_ar) || ''}`),
+    ].filter(Boolean).join(' ');
+    const price = Number(line.is_priced)
+      ? money(line.unit_price_minor * line.quantity, currency) : line.price_note;
+    return `• ${line.quantity} × ${name}${detail ? ` ${detail}` : ''} — ${price}`;
+  }).join('\n');
   const total = lines.reduce((sum, line) =>
     sum + (Number(line.is_priced) ? Number(line.unit_price_minor) * Number(line.quantity) : 0), 0);
   const hasUnpriced = lines.some((line) => !Number(line.is_priced));
