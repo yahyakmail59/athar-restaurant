@@ -477,9 +477,9 @@ ${site.services.length ? site.services.map((service) => `<article class="service
   if (on(s.show_reservation)) {
     parts.push(`<section class="section compact-section reservation-section" id="contact">
 <div class="page-shell">
-<div class="section-title"><span class="red-streak"></span><div><h2>${escapeHtml(bi(s, 'reservation_title', lang))}</h2><p>${escapeHtml(miniLabel(s, 'reservation_title', lang))}</p></div></div>
+<div class="section-title"><span class="red-streak"></span><div><h2>${escapeHtml(on(s.plan_reservations) ? bi(s, 'reservation_title', lang) : t('تواصل معنا', 'Contact us'))}</h2><p>${escapeHtml(miniLabel(s, 'reservation_title', lang))}</p></div></div>
 <div class="reservation-box reveal">
-${reservationForm(s, lang, baseUrl)}
+${on(s.plan_reservations) ? reservationForm(s, lang, baseUrl) : ''}
 <div class="contact-card">
 <p class="reservation-intro">${escapeHtml(bi(s, 'reservation_text', lang))}</p>
 <div class="contact-row"><i data-lucide="map-pin"></i><span><b>${t('العنوان', 'Address')}</b><small>${escapeHtml(bi(s, 'address', lang))}</small></span></div>

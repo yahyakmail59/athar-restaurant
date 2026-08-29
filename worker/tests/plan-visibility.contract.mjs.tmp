@@ -1,0 +1,7 @@
+check(
+  'الباقة تُطفئ الحجز عند تحميل الموقع',
+  /planAllows\(planCode, 'reservations'\)/.test(site)
+  && /settings\.results\[0\]\.show_reservation = 0/.test(site),
+  'في `loadSite` وحدها — ثلاثة مواضع في القوالب تقرأ الراية نفسها',
+);
+

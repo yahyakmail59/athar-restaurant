@@ -63,9 +63,11 @@ export async function loadSite(env, restaurantId, planCode = '') {
     db.prepare(`SELECT * FROM social_posts WHERE restaurant_id = ? AND ${ACTIVE} ORDER BY display_order`).bind(restaurantId),
   ]);
 
-  // ما لا تشمله الباقة لا يُعرض. القرار هنا وحده.
-  if (settings.results?.[0] && !planAllows(planCode, 'reservations')) {
-    settings.results[0].show_reservation = 0;
+  // الحجز وحده يُطفأ، لا القسم كلّه: القسم يحمل معه بطاقة التواصل
+  // (العنوان والساعات والهاتف) ولوحة الطلب على واتساب، وهما من صميم
+  // باقة المنيو. راية مستقلة كي لا يُسقط الحارسُ ما جاء يحرسه.
+  if (settings.results?.[0]) {
+    settings.results[0].plan_reservations = planAllows(planCode, 'reservations') ? 1 : 0;
   }
 
   const byItem = (rows) => {

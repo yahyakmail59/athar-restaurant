@@ -44,10 +44,10 @@ function check(name, ok, detail = '') {
 /* ---------- 1) الحجز على الموقع العام ---------- */
 
 check(
-  'الباقة تُطفئ الحجز عند تحميل الموقع',
-  /planAllows\(planCode, 'reservations'\)/.test(site)
-  && /settings\.results\[0\]\.show_reservation = 0/.test(site),
-  'في `loadSite` وحدها — ثلاثة مواضع في القوالب تقرأ الراية نفسها',
+  'الباقة تُطفئ الحجز براية مستقلة',
+  /plan_reservations = planAllows\(planCode, 'reservations'\)/.test(site)
+  && !/show_reservation = 0/.test(site),
+  'في `loadSite` وحدها',
 );
 
 check(
@@ -57,10 +57,31 @@ check(
   'نداء بلا باقة يجعل الافتراضي يمرّ ويعود العطل صامتًا',
 );
 
-// والقوالب تبقى مربوطة بالراية: لو فُكّ ارتباط موضع منها لصار يظهر دائمًا.
+// وهذا حارس على خطإٍ وقعتُ فيه: أطفأتُ `show_reservation` كلّه أول مرة،
+// فسقط مع النموذج بطاقةُ التواصل (العنوان والساعات والهاتف) ولوحةُ الطلب
+// على واتساب — وهما من صميم باقة المنيو. الحارس يجب أن يُسقط ما جاء
+// يحرسه وحده.
+check(
+  'النموذج وحده مشروط بالباقة',
+  /\$\{on\(s\.plan_reservations\) \? reservationForm\(/.test(render),
+);
+
+check(
+  'وبطاقة التواصل ولوحة واتساب تبقيان',
+  !/plan_reservations[^\n]*contact-card/.test(render)
+  && !/plan_reservations[^\n]*whatsapp-panel/.test(render),
+  'خسارتهما تُخرِس مطعمًا يبيع بهما',
+);
+
+check(
+  'وعنوان القسم يصير «تواصل معنا» بلا حجز',
+  /on\(s\.plan_reservations\) \? bi\(s, 'reservation_title'/.test(render),
+  '«احجز طاولتك» فوق قسم بلا حجز وعدٌ كاذب',
+);
+
 const flagged = (render.match(/on\(s\.show_reservation\)|on\(settings\.show_reservation\)/g) || []).length;
 check(
-  'كل مواضع الحجز مربوطة بالراية',
+  'وراية القسم باقية في مواضعها',
   flagged >= 3,
   `${flagged} مواضع: رابط الترويسة، والقسم، ورابط التذييل`,
 );
