@@ -7,6 +7,7 @@
  */
 
 const ACTIVE = 'is_active = 1';
+import { planAllows } from './access.js';
 
 /** يحلّ الـslug إلى مطعم عامل. الموقوف والمؤرشف لا يُخدَم موقعه. */
 export async function resolveRestaurant(env, slug) {
@@ -28,7 +29,24 @@ export async function loadSettings(env, restaurantId) {
  * D1 يحاسب على عدد الاستعلامات لا على حجمها، وصفحة تُبنى باستعلام لكل قسم
  * تصير عشرة ذهابات وإياب. `batch` يجعلها واحدة.
  */
-export async function loadSite(env, restaurantId) {
+/**
+ * يقرأ كل ما تعرضه صفحة المطعم العامة.
+ *
+ * الباقة تُطفئ الحجز هنا لا في القوالب: ثلاثة مواضع في `render.js` تقرأ
+ * `show_reservation` — رابط الترويسة، والقسم نفسه، ورابط التذييل —
+ * وإطفاؤه في مكان واحد يُغلقها جميعًا فلا يتخلّف موضع عن أخيه.
+ *
+ * ولماذا أصلًا: `show_reservation` يقول «صاحب المطعم يريد إظهاره»،
+ * والباقة تقول «هل يعمل». وكان الموقع يقرأ الأول ويتجاهل الثاني، فيعرض
+ * مطعمٌ على باقة المنيو نموذج حجز كاملًا، يملؤه الزبون فيُردّ عليه
+ * «تعذّر إرسال طلب الحجز. راجع البيانات» — وبياناته سليمة. فيلوم نفسه
+ * ويعيد المحاولة ثم ييأس، وصاحب المطعم لا يعلم أن أحدًا حاول أن يحجز
+ * عنده. رأيته حيًّا على `dora.athar.date`: 303 إلى `err_reservation`.
+ *
+ * وليس هذا إخفاءً بديلًا عن المنع: `publicReservation` يرفض بنفسه أيضًا.
+ * الإخفاء يمنع أن يُطلب من الزبون ما لا يمكن أن ينجح أصلًا.
+ */
+export async function loadSite(env, restaurantId, planCode = '') {
   const db = env.DB;
   const [settings, heroStats, categories, items, variants, addons, offers,
     services, testimonials, faqs, socialPosts] = await db.batch([
@@ -44,6 +62,11 @@ export async function loadSite(env, restaurantId) {
     db.prepare(`SELECT * FROM faqs WHERE restaurant_id = ? AND ${ACTIVE} ORDER BY display_order`).bind(restaurantId),
     db.prepare(`SELECT * FROM social_posts WHERE restaurant_id = ? AND ${ACTIVE} ORDER BY display_order`).bind(restaurantId),
   ]);
+
+  // ما لا تشمله الباقة لا يُعرض. القرار هنا وحده.
+  if (settings.results?.[0] && !planAllows(planCode, 'reservations')) {
+    settings.results[0].show_reservation = 0;
+  }
 
   const byItem = (rows) => {
     const map = new Map();

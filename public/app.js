@@ -153,7 +153,22 @@ const PANEL_TITLES = {
   account: ['حسابي', ''],
 };
 
+/**
+ * يفتح شاشة من شاشات اللوحة.
+ *
+ * الحارس أولًا: إخفاء الزرّ ليس منعًا. كانت `showPanel` تفتح ما يُطلب منها
+ * مهما كان، فمن يناديها بغير طريق الزرّ — أو من يجرّبها من وحدة التحكّم —
+ * يرى شاشة فارغة تنهار على 402، ويقرأ «الحجوزات جزء من الباقة الكاملة»
+ * بعد أن انتظر تحميلها. والصواب ألا تُفتح أصلًا.
+ *
+ * والمنع الحقيقي على الخادم: كل مسار يفحص الباقة والدور بنفسه. هذا حارس
+ * راحةٍ فوقه، لا بديل عنه.
+ */
 async function showPanel(name) {
+  if (state.allowed && state.allowed[name] === false) {
+    toast('هذه الشاشة ليست ضمن باقتك أو صلاحيتك.', 'error');
+    return;
+  }
   for (const panel of panels) $(`panel-${panel}`).hidden = panel !== name;
   for (const button of document.querySelectorAll('.side-link[data-panel]')) {
     button.classList.toggle('is-active', button.dataset.panel === name);
@@ -242,6 +257,9 @@ async function bootstrap() {
     menu: info.user.role !== 'cashier',
     content: info.user.role !== 'cashier',
   };
+  // تُحفظ لأن الإخفاء وحده لا يمنع الفتح: `showPanel` تُنادى من مواضع
+  // أخرى، وشاشة تُفتح ثم تفشل بـ402 أسوأ من شاشة لا تُفتح.
+  state.allowed = gated;
   for (const button of document.querySelectorAll('.side-link[data-panel]')) {
     const allowed = gated[button.dataset.panel];
     button.hidden = allowed === false;

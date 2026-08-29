@@ -154,13 +154,18 @@ async function handlePublic(request, env, slug, rest, base) {
   if (orderMatch) {
     const found = await orderByToken(env, restaurant.restaurant_id, orderMatch[1]);
     if (!found) return simplePage('الطلب غير موجود', 'تحقق من الرابط.', 404);
-    const site = await loadSite(env, restaurant.restaurant_id);
+    const site = await loadSite(env, restaurant.restaurant_id, restaurant.plan_code);
     if (!site.settings) return simplePage('الصفحة غير متاحة', 'هذا الموقع قيد الإعداد.', 404);
-    const receiptUrl = new URL(`o/${orderMatch[1]}/receipt.png`, homeUrl).toString();
+    // مطعمٌ نزل من الكاملة إلى المنيو تبقى روابط طلباته القديمة حيّة عند
+    // زبائنه، وزرّ الفاتورة فيها كان يقود إلى صفحة 402. الرابط الفارغ
+    // يُسقط الزرّ من الصفحة أصلًا بدل أن يَعِد بما لا يُعطى.
+    const receiptUrl = planAllows(restaurant.plan_code, 'receipts')
+      ? new URL(`o/${orderMatch[1]}/receipt.png`, homeUrl).toString()
+      : '';
     return html(renderOrder(site, found.order, found.lines, { base, receiptUrl }));
   }
 
-  const site = await loadSite(env, restaurant.restaurant_id);
+  const site = await loadSite(env, restaurant.restaurant_id, restaurant.plan_code);
   if (!site.settings) return simplePage('الصفحة غير متاحة', 'هذا الموقع قيد الإعداد.', 404);
 
   if (rest === '' || rest === 'index.html') {

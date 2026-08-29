@@ -1011,10 +1011,10 @@ dl{margin:0;display:grid;gap:8px} dl>div{display:flex;gap:10px;font-size:.88rem}
 <span class="pill ${escapeHtml(order.fulfillment)}">${escapeHtml(FULFILLMENT_LABEL_AR[order.fulfillment] || order.fulfillment)}</span>
 <p class="status">${escapeHtml(dateText)} · ${escapeHtml(STATUS_LABEL_AR[order.status] || order.status)}</p>
 </div>
-<div class="receipt-actions">
+${receiptUrl ? `<div class="receipt-actions">
 <a class="receipt-link" href="${escapeHtml(receiptUrl)}" target="_blank" rel="noopener">عرض صورة الفاتورة</a>
 <button class="receipt-link share" type="button" id="share-receipt" hidden data-receipt="${escapeHtml(receiptUrl)}" data-code="${escapeHtml(order.code)}">مشاركة صورة الفاتورة</button>
-</div>
+</div>` : ''}
 <div class="card">
 <h2>الأصناف</h2>
 ${lineRows}
