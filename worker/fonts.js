@@ -32,6 +32,10 @@ export const ARABIC_DISPLAY_FONTS = {
 };
 
 export const DISPLAY_FONTS = {
+  // Reem Kufi يحمل حروفًا لاتينية أيضًا. أُضيف هنا لأن هوية «شبيه Fries
+  // Station» تستعمل وجهًا واحدًا في الأدوار الثلاثة، وهي بصمتها الطباعية:
+  // خطّ واحد يوحّد العربي واللاتيني بدل وجهين يتنافران.
+  'reem-kufi': ['Reem Kufi — ريم كوفي', 'Reem+Kufi:wght@500;600;700', '"Reem Kufi", sans-serif'],
   'bebas-neue': ['Bebas Neue', 'Bebas+Neue', '"Bebas Neue", sans-serif'],
   anton: ['Anton', 'Anton', '"Anton", sans-serif'],
   oswald: ['Oswald', 'Oswald:wght@400;500;600;700', '"Oswald", sans-serif'],
@@ -41,6 +45,7 @@ export const DISPLAY_FONTS = {
 };
 
 export const LATIN_FONTS = {
+  'reem-kufi': ['Reem Kufi — ريم كوفي', 'Reem+Kufi:wght@500;600;700', '"Reem Kufi", sans-serif'],
   montserrat: ['Montserrat', 'Montserrat:wght@500;600;700;800', '"Montserrat", sans-serif'],
   poppins: ['Poppins', 'Poppins:wght@400;500;600;700;800', '"Poppins", sans-serif'],
   inter: ['Inter', 'Inter:wght@400;500;600;700;800', '"Inter", sans-serif'],

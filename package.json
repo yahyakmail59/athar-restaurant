@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node worker/tests/receipt.test.mjs && node worker/tests/engine.integration.mjs && node worker/tests/cart-ids.contract.mjs && node worker/tests/order-summary.contract.mjs && node worker/tests/plan-visibility.contract.mjs",
+    "test": "node worker/tests/receipt.test.mjs && node worker/tests/engine.integration.mjs && node worker/tests/cart-ids.contract.mjs && node worker/tests/order-summary.contract.mjs && node worker/tests/plan-visibility.contract.mjs && node worker/tests/brandkits.contract.mjs",
     "test:receipt": "node worker/tests/receipt.test.mjs",
     "deploy": "wrangler deploy --config worker/wrangler.jsonc"
   },

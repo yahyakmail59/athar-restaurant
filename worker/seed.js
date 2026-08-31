@@ -58,6 +58,10 @@ export function defaultContentStatements(db, restaurantId, { displayName, config
     primary_color: brandKit.primary_color, gold_color: brandKit.gold_color,
     background_color: brandKit.background_color, surface_color: brandKit.surface_color,
     whatsapp_color: brandKit.whatsapp_color, theme_layer: brandKit.theme_layer,
+    // النصّ والخافت والحدود: بدونها تبقى داكنة مهما كانت الأرضية فاتحة،
+    // فتُنتج الهويةُ الفاتحة صفحةً يختفي نصُّها.
+    text_color: brandKit.text_color, muted_color: brandKit.muted_color,
+    line_color: brandKit.line_color,
     arabic_font: brandKit.arabic_font, arabic_display_font: brandKit.arabic_display_font,
     display_font: brandKit.display_font, latin_font: brandKit.latin_font,
 

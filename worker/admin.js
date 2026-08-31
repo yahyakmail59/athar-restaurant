@@ -164,7 +164,10 @@ let settingsColumnCache = null;
 // يمر بلا أثر ظاهر. المرجع الآن `access.js` وحده.
 const DENIED_SETTINGS = new Set(['restaurant_id', 'updated_at', ...ATHAR_OWNED_SETTINGS]);
 
-const COLOR_FIELDS = new Set(['primary_color', 'gold_color', 'background_color', 'surface_color', 'whatsapp_color']);
+// النصّ والخافت والحدود منها: الهوية تملك وضعها لا لونها وحده، وصاحب
+// المطعم الذي يبدّل أرضيته إلى فاتحة يحتاج أن يبدّل نصّه معها.
+const COLOR_FIELDS = new Set(['primary_color', 'gold_color', 'background_color',
+  'surface_color', 'whatsapp_color', 'text_color', 'muted_color']);
 // كل خانة خط تتحقق من سجلها الخاص في `fonts.js` — لا نص حر. اسم خط غير
 // موجود في السجل لا يكسر شيئًا بنفسه (تسقط الصفحة على الافتراضي)، لكنه
 // يعني أن المطعم اختار من قائمة لا وجود لها فعلًا، وهذا ما يمنعه التحقق هنا.

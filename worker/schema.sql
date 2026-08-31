@@ -65,6 +65,12 @@ CREATE TABLE IF NOT EXISTS settings (
   background_color TEXT NOT NULL DEFAULT '#050505',
   surface_color TEXT NOT NULL DEFAULT '#111111',
   whatsapp_color TEXT NOT NULL DEFAULT '#25D366',
+  -- النصّ والخافت والحدود: بدونها تبقى داكنة مهما كانت الأرضية فاتحة،
+  -- فتُنتج الهويةُ الفاتحة صفحةً يختفي نصُّها. الافتراضات داكنة كما كانت،
+  -- فمطعمٌ قائم لا يتغيّر شكله.
+  text_color TEXT NOT NULL DEFAULT '#FFFFFF',
+  muted_color TEXT NOT NULL DEFAULT '#B8B8B8',
+  line_color TEXT NOT NULL DEFAULT 'rgba(255,255,255,.14)',
   theme TEXT NOT NULL DEFAULT 'dark' CHECK (theme IN ('dark', 'light')),
   -- طبقة الثيم الإضافية فوق الأنماط الأساسية، كما في أضنة (`theme_css`):
   -- تُحمَّل بعد الورقة الأساسية فلا تعدّلها، فقط تزيد عليها. القيم من

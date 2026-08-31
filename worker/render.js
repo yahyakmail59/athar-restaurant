@@ -52,12 +52,43 @@ function fontStacks(settings) {
 }
 
 /** أنماط `:root` المحقونة — القيم فقط، والأصل كله في `style.css` المنسوخ حرفيًا. */
+const LINE_ON_DARK = 'rgba(255,255,255,.14)';
+const LINE_ON_LIGHT = 'rgba(34,34,34,.18)';
+
+/** هل هذا النصّ فاتح — أي أرضيته داكنة؟ */
+function onLight(hex) {
+  const m = /^#([0-9a-f]{6})$/i.exec(String(hex || ''));
+  if (!m) return false;
+  const n = parseInt(m[1], 16);
+  const lum = (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255;
+  return lum < 0.5;
+}
+
+/**
+ * لون حدٍّ آمن.
+ *
+ * `safeColor` تقبل `#rrggbb` وحدها، وحدود الهوية شفافة بطبعها —
+ * `rgba(255,255,255,.14)` على الداكن. فتُقبل هنا بشكل مقيّد: أرقام
+ * وفواصل ونقطة داخل `rgba()` لا غير، فلا يمرّ منها ما يكسر الورقة.
+ */
+function safeLine(value, fallback) {
+  const raw = String(value || '').trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(raw)) return raw;
+  if (/^rgba?\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+\s*(,\s*[\d.]+\s*)?\)$/.test(raw)) return raw;
+  return fallback;
+}
+
 function rootVars(settings) {
   const primary = safeColor(settings.primary_color, '#E30613');
   const gold = safeColor(settings.gold_color, '#D4AF37');
   const bg = safeColor(settings.background_color, '#050505');
   const surface = safeColor(settings.surface_color, '#111111');
   const wa = safeColor(settings.whatsapp_color, '#25D366');
+  const text = safeColor(settings.text_color, '#FFFFFF');
+  const muted = safeColor(settings.muted_color, '#B8B8B8');
+  // الحدّ قد يكون `rgba(...)` لا `#rrggbb`، فلا يمرّ بـ`safeColor`.
+  // يُقبل شكلًا محدودًا: أرقام وفواصل ونقطة داخل `rgba()` وحدها.
+  const line = safeLine(settings.line_color, onLight(text) ? LINE_ON_LIGHT : LINE_ON_DARK);
   const fonts = fontStacks(settings);
   return `:root{
 --brand-red:${primary};
@@ -68,6 +99,9 @@ function rootVars(settings) {
 --page-bg:${bg};
 --surface:${surface};
 --whatsapp:${wa};
+--text:${text};
+--muted:${muted};
+--line:${line};
 --display:${fonts.display};
 --arabic:${fonts.arabic};
 --arabic-display:${fonts.arabicDisplay};
@@ -89,7 +123,10 @@ const ATHAR_CSS = '.footer-admin{display:inline-flex;align-items:center;gap:6px;
   + '.footer-admin svg{flex:none}';
 
 /** طبقة الثيم الإضافية — تُحمَّل فوق `style.css` ولا تعدّله، كما في أضنة تمامًا. */
-const THEME_LAYERS = { luxury: '/site/css/themes/luxury.css' };
+const THEME_LAYERS = {
+  luxury: '/site/css/themes/luxury.css',
+  light: '/site/css/themes/light.css',
+};
 const themeLayerHref = (settings) => THEME_LAYERS[String(settings.theme_layer || '')] || '';
 
 /* ==================== الهيكل (base.html) ==================== */
