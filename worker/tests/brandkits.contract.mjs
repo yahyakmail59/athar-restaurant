@@ -115,6 +115,22 @@ for (const code of BRAND_KIT_ORDER) {
   );
 }
 
+/* ---------- 1ج) لا اسمَ متقاعدًا يُكتب في صفٍّ جديد ---------- */
+
+/*
+ * كان المهيّئ يكتب `'adana_classic'` حين لا تُرسِل اللوحة رمزًا. والاسم
+ * يُحلّ عبر `ALIASES` فلا شيء ينكسر — لكنه يُخزَّن في صفّ المطعم، فتمتلئ
+ * القاعدة بأسماء متقاعدة ويُقرأ التقرير عليها.
+ */
+
+const adapterSource = readFileSync(new URL('../adapter.js', import.meta.url), 'utf8');
+const retiredWrite = /brandKitCode \|\| '([a-z0-9_]+)'/.exec(adapterSource);
+check(
+  'المهيّئ يسقط إلى الافتراضيّة بالرمز لا بالنصّ',
+  !retiredWrite,
+  retiredWrite ? `يكتب '${retiredWrite[1]}' نصًّا` : 'يستعمل `DEFAULT_BRAND_KIT`',
+);
+
 /* ---------- 2) الوضع يطابق الأرقام ---------- */
 
 for (const code of BRAND_KIT_ORDER) {

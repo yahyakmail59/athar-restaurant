@@ -12,7 +12,7 @@ import {
   readBoundedBody, safeEqual, sha256Hex, str,
 } from './lib.js';
 import { demoSeedStatements, DEMO_SEED_VERSION, defaultContentStatements } from './seed.js';
-import { resolveBrandKit } from './brandkits.js';
+import { resolveBrandKit, DEFAULT_BRAND_KIT } from './brandkits.js';
 
 export async function verifyAdapterRequest(request, env) {
   const secret = env.ATHAR_ADAPTER_SECRET;
@@ -237,7 +237,7 @@ async function provision(env, signed) {
          VALUES (?, ?, ?, ?, ?, ?, ?, 'active', 1, ?, ?, ?, ?, ?)`,
       ).bind(
         restaurantId, tenantId, publicSlug, displayName, environment, planCode,
-        body.trial_expires_at || null, seedVersion, brandKitCode || 'adana_classic', now, now, now,
+        body.trial_expires_at || null, seedVersion, brandKitCode || DEFAULT_BRAND_KIT, now, now, now,
       ),
       db.prepare(
         `INSERT INTO users
