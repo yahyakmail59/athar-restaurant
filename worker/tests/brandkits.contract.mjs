@@ -17,6 +17,8 @@
  */
 
 import { BRAND_KITS, BRAND_KIT_ORDER, DEFAULT_BRAND_KIT, resolveBrandKit, brandKitChoices } from '../brandkits.js';
+import { readFileSync } from 'node:fs';
+import { inkFor } from '../colors.js';
 import { ARABIC_FONTS, ARABIC_DISPLAY_FONTS, DISPLAY_FONTS, LATIN_FONTS } from '../fonts.js';
 
 const checks = [];
@@ -66,6 +68,50 @@ for (const code of BRAND_KIT_ORDER) {
     `${kit.label} — الخافت`,
     (mutedOnCard ?? 0) >= 3,
     `${(mutedOnCard ?? 0).toFixed(2)} على السطح`,
+  );
+}
+
+/* ---------- 1ب) شارة السلّة: الحبر موصول لا محسوب فقط ---------- */
+
+/*
+ * `--whatsapp` ليس لونَ زرٍّ فحسب — عليه تجلس شارة عدد السلّة في الترويسة.
+ * وكانت ترث حبر الزرّ الأحمر تحتها: أبيضَ على أخضر واتساب `#25D366` بنسبة
+ * 1.98 — في الهويات الداكنة كلّها لا في الفاتحة وحدها. قِيست في المتصفح.
+ *
+ * والعلاج حبرٌ محسوب للأخضر نفسه: `--whatsapp-ink`. ولمّا صار محسوبًا لم
+ * يعد قياسُ التباين حارسًا — `inkFor` تختار الأنسب من الأسود والأبيض،
+ * فيَعبُر كلُّ أخضرَ إلا رماديًّا وسطًا نادرًا. جُرِّب: `#6E9E88` عبَر
+ * بـ6.21، و`#7CE0A5` بـ11.75. فحارسٌ لا يسقط ليس حارسًا.
+ *
+ * فالمحروس هنا **الوصل** لا الحساب: أن يُصدِر المحرك الرمز، وأن تستهلكه
+ * قاعدةُ الشارة. حذفُ أيّهما يعيد الوراثة الصامتة — ولا شيء يُخطئ.
+ */
+
+const renderSource = readFileSync(new URL('../render.js', import.meta.url), 'utf8');
+const styleSource = readFileSync(new URL('../../public/site/css/style.css', import.meta.url), 'utf8');
+
+check(
+  'المحرك يُصدِر `--whatsapp-ink`',
+  /--whatsapp-ink:\$\{inkFor\(wa,/.test(renderSource),
+  'بلا الرمز تسقط القاعدة إلى الوراثة: حبرُ الزرّ الأحمر على الأخضر',
+);
+
+const badgeRule = /\.header-whatsapp em\s*\{([^}]*)\}/.exec(styleSource);
+check(
+  'وقاعدة الشارة تستهلكه',
+  Boolean(badgeRule) && /color:\s*var\(--whatsapp-ink\)/.test(badgeRule[1]),
+  badgeRule ? 'قاعدة `.header-whatsapp em` موجودة' : 'قاعدة `.header-whatsapp em` غير موجودة أصلًا',
+);
+
+/* والحساب يبقى أرضيةً دنيا: أخضرُ رماديٌّ وسط لا يحتمل حبرًا أصلًا. */
+for (const code of BRAND_KIT_ORDER) {
+  const kit = BRAND_KITS[code];
+  const ink = inkFor(kit.whatsapp_color, '#25D366');
+  const badge = ratio(ink, kit.whatsapp_color);
+  check(
+    `${kit.label} — شارة السلّة`,
+    (badge ?? 0) >= 4.5,
+    `${(badge ?? 0).toFixed(2)} · حبرها ${ink} على ${kit.whatsapp_color}`,
   );
 }
 

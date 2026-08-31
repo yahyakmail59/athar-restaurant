@@ -99,6 +99,7 @@ function rootVars(settings) {
 --page-bg:${bg};
 --surface:${surface};
 --whatsapp:${wa};
+--whatsapp-ink:${inkFor(wa, '#25D366')};
 --text:${text};
 --muted:${muted};
 --line:${line};
@@ -110,19 +111,24 @@ function rootVars(settings) {
 }
 
 /**
- * أنماط أثر وحدها — ما لا مقابل له في `style.css` المنسوخ حرفيًا عن أضنة.
+ * أنماط أثر وحدها — ما لا مقابل له في `style.css`.
  *
- * تُحقن هنا لا في الملف نفسه: الملف يبقى مطابقًا للأصل بايتًا ببايت فتُقارن
- * ترقياته مستقبلًا بلا تشويش. و`.footer-bottom` أصلًا `space-between`، فزر
- * الإدارة يقف في الطرف المقابل لحقوق النشر بلا تعديل في التخطيط.
+ * وكان هنا أن الملف يبقى مطابقًا لأضنة بايتًا ببايت فتُقارن ترقياته لاحقًا.
+ * تُركت القاعدة عمدًا: أضنة مشروع Django متوقّف ولا ترقيات تأتي منه
+ * لتُقارَن، وثمنُها كان أن يبقى المحرك داكنًا إلى الأبد. فصار `style.css`
+ * مُرمَّزًا بالدور، والوضع الفاتح طبقةً فوقه.
+ *
+ * ويبقى الحقن هنا لهذه القاعدة وحدها: `.footer-bottom` أصلًا
+ * `space-between`، فزرّ الإدارة يقف في الطرف المقابل لحقوق النشر بلا
+ * تعديل في التخطيط.
  */
 const ATHAR_CSS = '.footer-admin{display:inline-flex;align-items:center;gap:6px;'
-  + 'font:500 .62rem var(--latin);color:#777;text-decoration:none;opacity:.75;'
+  + 'font:500 .62rem var(--latin);color:var(--muted);text-decoration:none;opacity:.75;'
   + 'transition:color .2s,opacity .2s}'
   + '.footer-admin:hover,.footer-admin:focus-visible{color:var(--brand-gold);opacity:1}'
   + '.footer-admin svg{flex:none}';
 
-/** طبقة الثيم الإضافية — تُحمَّل فوق `style.css` ولا تعدّله، كما في أضنة تمامًا. */
+/** طبقة الثيم الإضافية — تُحمَّل فوق `style.css` ولا تعدّله. */
 const THEME_LAYERS = {
   luxury: '/site/css/themes/luxury.css',
   light: '/site/css/themes/light.css',

@@ -2,14 +2,34 @@
    طبقة الوضع الفاتح.
 
    الأرضية والسطح والنصّ والخافت والحدود تأتي من رموز الهوية، فلا شأن لهذه
-   الطبقة بها. هي لما لا يُعبَّر عنه برمز: تراكيب شفافة سوداء وظلال ضُبطت
-   لخلفية سوداء.
+   الطبقة بها. هي لما لا يُعبَّر عنه برمز: ستائرُ سوداء وظلالٌ ضُبطت لأرضية
+   سوداء، ونصوصٌ تجلس فوقها.
 
-   وما لا يُلمَس عمدًا: **الستائر فوق الصور**. النصّ فوق صورة يحتاج ستارة
-   داكنة في الوضعين — صورة الطبق ملوّنة لا فاتحة، وتفتيح ستارتها يُخفي
-   عنوانها. فتبقى `.hero-shade` و`.category-vignette` و`.image-sheen`
-   و`.hero-features` كما هي: أرضيتها الصورة لا الصفحة.
+   **والستارة لا تُفتَّح — تُصبَغ.** النصّ فوق صورة يحتاج ستارةً داكنة في
+   الوضعين: صورة الطبق ملوّنة لا فاتحة، وستارةٌ فاتحة فوقها لا تُخفي شيئًا
+   فيضيع العنوان. وهكذا فعل Fries Station نفسه — قِيس ملفّه: ستائره
+   `rgba(140,21,24,…)`، وهو أحمرُه الأعمق لا أسود، ونصوصها بيضاء. فالجزيرة
+   الداكنة تبقى داكنة وتُنسب إلى الهوية، ويبقى ما فوقها أبيض.
+
+   ولذلك رمزان جديدان هنا لا في `rootVars`: `--deep` يُشتقّ من اللون الأساسي
+   بالحساب فيتبع كل هوية بلا حقل جديد في الإعدادات، و`--on-deep` هو الأبيض
+   الذي يجلس فوقه.
    ========================================================================== */
+
+:root {
+  /* الأعمق: اللون الأساسي ممزوجًا بالأسود. #D71920 يعطي ما يقارب #8C1518 —
+     وهو نفسه الذي اختاره Fries Station بيده. ويتبع الزيتونيّ فيعطي زيتونيًّا
+     أعمق، فلا هوية تحتاج حقلًا إضافيًّا. */
+  --deep: color-mix(in srgb, var(--brand-red) 58%, #000);
+  --on-deep: #FFFFFF;
+  --on-deep-muted: rgba(255, 255, 255, .84);
+  --on-deep-faint: rgba(255, 255, 255, .70);
+
+  /* الذهبيّ لهجةُ المحرك: أيقونات ونجومٌ وأسماءُ من كتبوا الآراء. وهو على
+     الأسود يلمع، وعلى الأبيض يذوب — `#FFC107` عليه 1.63:1، مقيسًا. فيبقى
+     كما هو حيثما كان **سطحًا** (شارة، زرّ، حدّ) وينزل هنا حيث كان **حبرًا**. */
+  --gold-ink: color-mix(in srgb, var(--brand-gold) 42%, #000);
+}
 
 /* --- الترويسة --- */
 /* كانت تدرّجًا أسود شبه معتم فوق البطل. على أرضية فاتحة تصير شريطًا أسود
@@ -25,6 +45,160 @@
   background: color-mix(in srgb, var(--page-bg) 94%, transparent);
   box-shadow: 0 10px 28px rgba(15, 15, 15, .10);
   border-bottom: 1px solid var(--line);
+}
+
+/* --- ستارة البطل --- */
+.hero-shade {
+  background:
+    linear-gradient(90deg,
+      color-mix(in srgb, var(--deep) 97%, transparent) 0%,
+      color-mix(in srgb, var(--deep) 92%, transparent) 28%,
+      color-mix(in srgb, var(--deep) 55%, transparent) 56%,
+      color-mix(in srgb, var(--deep) 12%, transparent) 100%),
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--deep) 45%, transparent) 0%,
+      transparent 32%,
+      transparent 72%,
+      color-mix(in srgb, var(--deep) 60%, transparent) 100%);
+}
+
+/* والنصّ فوقها أبيض: أرضيته الستارة لا الصفحة. */
+.hero-copy,
+.hero-copy h1 { color: var(--on-deep); }
+.hero-ar { color: var(--on-deep-muted); }
+.hero-en { color: var(--on-deep-faint); }
+.hero-copy h1 { text-shadow: 0 6px 24px rgba(0, 0, 0, .38); }
+
+/* الأحمر على الأعمق لا يُقرأ — يُفتَّح داخل البطل وحده. */
+.hero-copy .hero-title-en { color: color-mix(in srgb, var(--brand-red) 42%, #fff); }
+
+/* --- شريط المزايا تحت البطل --- */
+/* كان `rgba(0,0,0,.55)` فوق الصورة. على صفحة فاتحة يصير سطحًا مرتفعًا:
+   نصُّه من رموز الهوية أصلًا فيُقرأ بلا تدخّل، والأيقونة تنزل إلى الأعمق
+   لأن الذهبيّ الفاتح على الأبيض لا يُرى. */
+.hero-features {
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+}
+
+.hero-feature > svg { color: var(--deep); }
+
+/* --- بطاقات الأقسام --- */
+/* البطاقة تحمل `color: white` مثبَّتًا في `style.css`، وأرضيتها `--surface`.
+   فقسمٌ بلا صورة يصير أبيضَ على أبيض ويختفي اسمه — وهو ما حلّه Fries
+   Station بجعل أرضية البطاقة حمراءَ لا سطحًا. فتصير هنا الأعمق: تحت الصورة
+   لا تُرى، وبلا صورة تحمل الاسم. */
+.category-card { background: var(--deep); }
+
+.category-vignette {
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--deep) 92%, transparent) 0%,
+    color-mix(in srgb, var(--deep) 62%, transparent) 34%,
+    color-mix(in srgb, var(--deep) 10%, transparent) 66%,
+    color-mix(in srgb, var(--deep) 26%, transparent) 100%);
+}
+
+/* --- تعتيم أسفل صورة الطبق --- */
+/* لا نصّ فوقه، فغرضه الفصل بين الصورة والبطاقة البيضاء. تعتيمٌ ثقيل هنا
+   يقطع البطاقة نصفين، فيخفّ ويُشتقّ من لون النصّ. */
+.image-sheen {
+  background: linear-gradient(180deg, transparent 62%,
+    color-mix(in srgb, var(--text) 28%, transparent));
+}
+
+/* --- بطاقات العروض --- */
+.offer-overlay {
+  background: linear-gradient(0deg,
+    color-mix(in srgb, var(--deep) 96%, transparent) 0%,
+    color-mix(in srgb, var(--deep) 88%, transparent) 35%,
+    color-mix(in srgb, var(--deep) 26%, transparent) 70%,
+    color-mix(in srgb, var(--deep) 4%, transparent) 100%);
+}
+
+.offer-copy { color: var(--on-deep); }
+.offer-copy p { color: var(--on-deep-muted); }
+.offer-old-price { color: var(--on-deep-faint); }
+/* أخضر واتساب في الهوية الفاتحة داكن ليُقرأ على الأبيض — وهنا أرضيته
+   الستارة، فيُفتَّح لها وحدها. */
+.offer-savings { color: color-mix(in srgb, var(--whatsapp) 45%, #fff); }
+.offer-copy h4 { color: color-mix(in srgb, var(--brand-red) 40%, #fff); }
+
+/* --- مبدّل اللغة --- */
+/* `color: white` للنشط وللمرور — على ترويسة فاتحة يختفي أيّهما اختير. */
+.language-switch a.active,
+.language-switch a:hover { color: var(--brand-red); }
+
+/* --- شارة «أحجام وإضافات» --- */
+/* ذهبيّ على غسيلٍ ذهبيّ بشفافية ١٤٪: يعمل على أرضية داكنة ويختفي على
+   بيضاء — نسبة ١:١ مقيسة. النصّ ينزل إلى الأعمق والغسيل يثخن قليلًا. */
+.customizable-tag {
+  color: var(--deep);
+  background: color-mix(in srgb, var(--brand-gold) 24%, var(--surface));
+}
+
+/* --- الذهبيّ حبرًا على سطح فاتح --- */
+.btn-dark svg,
+.view-all svg,
+.order-proof strong,
+.service-icon,
+.review-card .quote,
+.stars .on,
+.avatar,
+.review-card footer strong,
+.contact-row > svg,
+.bottom-nav-item.active,
+.drawer-empty > svg,
+.fulfillment-options label svg,
+.menu-search svg,
+.menu-results-bar strong,
+.menu-page-results strong,
+.menu-page-trust svg,
+.menu-page-kicker,
+.menu-load-more-btn svg,
+.menu-page-footer a { color: var(--gold-ink); }
+
+/* --- الحقول --- */
+/* القاعدة العنصرية في `style.css` تكتب `color: white` لكل `input` — فحقلٌ
+   خارج `.field` يبقى أبيضَ في أبيض. تُقلَب هنا بنفس الوزن وترتيبٍ أحدث. */
+input,
+textarea,
+select { color: var(--text); border-color: var(--line); }
+
+.menu-search input { color: var(--text); }
+
+/* أحمرُ الخطأ كان يُفتَّح ليُقرأ على الأسود؛ يُعمَّق ليُقرأ على الأبيض. */
+.errorlist { color: color-mix(in srgb, var(--brand-red) 72%, #000); }
+
+/* --- ما بقي مثبّتًا داكنًا في المتن --- */
+.dish-dialog-panel { background: var(--surface); }
+.cart-feedback { color: var(--text); box-shadow: 0 14px 38px rgba(20, 20, 20, .18); }
+.menu-page-hero p { color: var(--muted); }
+.menu-load-more-btn { color: var(--text); }
+.menu-load-more-btn:hover { background: color-mix(in srgb, var(--surface) 88%, var(--brand-gold)); }
+.menu-show-all-btn:hover { border-color: var(--brand-ink); }
+
+/* --- صفحة القائمة: ثلاثة ألواح سوداء مثبّتة --- */
+/* `#070707` و`#030303` تشقّ الصفحة الفاتحة. تصير أسطحًا غائرة: أفتحُ من
+   الصفحة بدرجة، فيُقرأ الفصل بين الأقسام بلا سواد. */
+.menu-page-best { background: color-mix(in srgb, var(--page-bg) 93%, var(--text)); }
+
+.menu-page-offers {
+  background:
+    radial-gradient(circle at 12% 50%, rgba(var(--brand-rgb), .07), transparent 30%),
+    color-mix(in srgb, var(--page-bg) 96%, var(--text));
+}
+
+/* وبطلُ الصفحة كان يتدرّج نحو الأسود — يتدرّج نحو لون الهوية بدلًا منه،
+   فيبقى فاتحًا وينتسب إلى المطعم لا إلى الرماد. */
+.menu-page-hero {
+  background:
+    radial-gradient(circle at 20% 20%, rgba(var(--brand-rgb), .10), transparent 32%),
+    radial-gradient(circle at 80% 0, rgba(var(--brand-gold-rgb), .14), transparent 30%),
+    linear-gradient(150deg, var(--page-bg), color-mix(in srgb, var(--page-bg) 88%, var(--brand-red)) 70%);
+}
+
+.menu-page-trust span {
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  color: var(--text);
 }
 
 /* --- الأزرار الداكنة --- */
@@ -56,11 +230,6 @@
 .offer-card { box-shadow: 0 12px 28px rgba(20, 20, 20, .10); }
 .offer-card:hover { box-shadow: 0 18px 38px rgba(20, 20, 20, .14), 0 0 0 1px var(--line); }
 
-/* --- ظلّ النصّ فوق البطل --- */
-/* يبقى: النصّ فوق صورة، لا فوق الصفحة. لكن شدّته تخفّ قليلًا لأن الستارة
-   تحته لم تعد تحتاج أن تُقاوم أرضية سوداء. */
-.hero-copy h1 { text-shadow: 0 6px 24px rgba(0, 0, 0, .55); }
-
 /* --- الحُجُب --- */
 /* حجابٌ أسود .80 خلف الدرج يبقى داكنًا في الوضعين: وظيفته إخفاء ما خلفه
    لا مجاراة الأرضية، وحجابٌ فاتح لا يُخفي شيئًا. */
@@ -83,4 +252,30 @@
 .bottom-nav {
   background: color-mix(in srgb, var(--surface) 96%, transparent);
   border-top: 1px solid var(--line);
+}
+
+@media (max-width: 820px) {
+  /* شريط الأقسام اللاصق: كان `rgba(5,5,5,.94)` — لوحًا أسود يعوم فوق صفحة
+     فاتحة. يصير سطحًا فاتحًا بحدّ، وبطاقاته رقاقاتٍ فاتحة: في هذا المقاس
+     تُخفي البطاقة صورتها وستارتها، فلولا قلب نصّها لبقي أبيض على فاتح. */
+  .category-grid { background: color-mix(in srgb, var(--surface) 96%, transparent); }
+
+  .category-card,
+  .mobile-all-category {
+    background: var(--surface);
+    color: var(--text);
+    border-color: var(--line);
+  }
+
+  .category-card small,
+  .mobile-all-category small { color: var(--muted); }
+
+  .category-card.active {
+    background: color-mix(in srgb, var(--brand-gold) 16%, var(--surface));
+    border-color: var(--brand-gold);
+  }
+
+  /* على الهاتف يجلس نصّ البطل على الستارة مباشرة، ولوحه الخاصّ يُصبَغ معها. */
+  .hero-ar,
+  .hero-en { background: rgba(0, 0, 0, .18); }
 }

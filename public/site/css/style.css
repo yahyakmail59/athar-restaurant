@@ -110,7 +110,7 @@ html:not(.icons-ready) .nav-toggle[aria-expanded="true"]::after { content: "×";
 .header-whatsapp span { display: grid; line-height: 1.2; text-align: start; direction: inherit; }
 .header-whatsapp b { font-size: .65rem; }
 .header-whatsapp small { font: 600 .49rem var(--latin); }
-.header-whatsapp em { display: none; position: absolute; top: -7px; right: -7px; width: 21px; height: 21px; border-radius: 50%; background: var(--whatsapp); font: 800 .65rem var(--latin); place-items: center; font-style: normal; }
+.header-whatsapp em { color: var(--whatsapp-ink); display: none; position: absolute; top: -7px; right: -7px; width: 21px; height: 21px; border-radius: 50%; background: var(--whatsapp); font: 800 .65rem var(--latin); place-items: center; font-style: normal; }
 .header-whatsapp em:not(:empty) { display: grid; }
 
 /* Hero */
@@ -487,7 +487,7 @@ html:not(.icons-ready) .footer-socials button::after { content: "✆"; font-size
 .floating-whatsapp { position: fixed; right: max(22px, env(safe-area-inset-right)); bottom: max(24px, calc(env(safe-area-inset-bottom) + 12px)); z-index: 950; width: 58px; height: 58px; border: 3px solid #a4efbd; border-radius: 50%; background: var(--whatsapp); color: #041309; display: grid; place-items: center; cursor: pointer; box-shadow: 0 12px 35px rgba(37,211,102,.4); animation: waFloat 2.3s ease-in-out infinite; }
 .floating-whatsapp svg { width: 29px; }
 html:not(.icons-ready) .floating-whatsapp::after { content: "🛒"; font-size: 1.4rem; }
-.floating-count { position: absolute; top: -6px; right: -6px; background: var(--brand-red); border-radius: 50%; width: 21px; height: 21px; display: grid; place-items: center; font: 700 .62rem var(--latin); }
+.floating-count { position: absolute; top: -6px; right: -6px; background: var(--brand-red); color: var(--brand-ink); border-radius: 50%; width: 21px; height: 21px; display: grid; place-items: center; font: 700 .62rem var(--latin); }
 @keyframes waFloat { 50% { transform: translateY(-7px); } }
 
 /* Bottom navigation (mobile) — replaces the floating button as the mobile

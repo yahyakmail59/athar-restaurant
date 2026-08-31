@@ -59,7 +59,7 @@ export const BRAND_KITS = {
     muted_color: '#555555',
     line_color: 'rgba(34,34,34,.18)',
     // أخضر واتساب الرسميّ فاتح، والأبيض عليه لا يُقرأ على سطح فاتح.
-    whatsapp_color: '#128C4A',
+    whatsapp_color: '#0F8244',
     theme_layer: 'light',
     arabic_font: 'cairo',
     arabic_display_font: 'reem-kufi',
@@ -79,7 +79,7 @@ export const BRAND_KITS = {
     text_color: '#1F2417',
     muted_color: '#57604B',
     line_color: 'rgba(31,36,23,.18)',
-    whatsapp_color: '#128C4A',
+    whatsapp_color: '#0F8244',
     theme_layer: 'light',
     arabic_font: 'almarai',
     arabic_display_font: 'aref-ruqaa',
