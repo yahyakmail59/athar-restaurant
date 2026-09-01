@@ -9,7 +9,7 @@
  */
 
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import worker from '../worker.js';
 import { FakeBucket, FakeD1 } from './d1.mjs';
@@ -40,16 +40,27 @@ const env = {
   ASSETS_BUCKET: new FakeBucket(),
   ATHAR_ADAPTER_SECRET: SECRET,
   PUBLIC_APP_URL: `${ORIGIN}/`,
-  // تحاكي طبقة أصول كلاودفلير في سلوك واحد يهمّنا: `/index.html` تُقنَّن
-  // بتحويل 307 إلى `/`. بدون هذه المحاكاة كان الفحص يمرّ بينما `/admin/`
-  // على الإنتاج يحوّل الزائر إلى موقع الزبون بدل فتح اللوحة.
+  // تحاكي طبقة أصول كلاودفلير في سلوكين يهمّاننا:
+  //
+  //   1) `/index.html` تُقنَّن بتحويل 307 إلى `/`. بدون هذه المحاكاة كان
+  //      الفحص يمرّ بينما `/admin/` على الإنتاج يحوّل الزائر إلى موقع
+  //      الزبون بدل فتح اللوحة.
+  //
+  //   2) **ما لا وجود له يردّ 404.** كانت الطبقة المزيّفة تردّ 200 لأي
+  //      مسار، فمرّ عيبٌ حقيقيّ: صفحة `/admin` تطلب `./app.js`، ويحلّها
+  //      المتصفح إلى `/app.js` — ولا وجود لها على نطاق المطعم. فتُحمَّل
+  //      اللوحة بلا شيفرتها وزرُّ الدخول ميّت. طبقةٌ تقول «نعم» لكل شيء
+  //      لا تكشف عيبًا في مسار.
   ASSETS: {
     fetch: async (request) => {
       const path = new URL(request.url).pathname;
       if (path === '/index.html') {
         return new Response(null, { status: 307, headers: { Location: '/' } });
       }
-      return new Response(path === '/' ? '<title>لوحة التحكم</title>' : 'static', { status: 200 });
+      const rel = path === '/' ? 'index.html' : path.replace(/^\/+/, '');
+      const file = fileURLToPath(new URL(`../../public/${rel}`, import.meta.url));
+      if (!existsSync(file)) return new Response('Not found', { status: 404 });
+      return new Response(readFileSync(file, 'utf8'), { status: 200 });
     },
   },
 };
@@ -378,8 +389,30 @@ await check('a restaurant is served from its own subdomain', async () => {
   const panel = await withHost('/admin/');
   assert.equal(panel.status, 200,
     `اللوحة على /admin ردّت ${panel.status} → ${panel.headers.get('Location') || ''}`);
-  assert.ok((await panel.text()).includes('لوحة التحكم'), '/admin لا يعيد صفحة اللوحة');
+  const panelBody = await panel.clone().text();
+  assert.ok(panelBody.includes('لوحة التحكم'), '/admin لا يعيد صفحة اللوحة');
   assert.equal((await withHost('/site/js/main.js')).status, 200, 'أصول الموقع لا تمر');
+
+  // `/admin` بلا شرطة: تُحوَّل، ولا تُخدَم مكانها.
+  const bare = await withHost('/admin');
+  assert.equal(bare.status, 301,
+    `/admin بلا شرطة ردّ ${bare.status} بدل تحويل — وصفحتُه تطلب أصولها بمسارات نسبية`);
+  assert.ok(String(bare.headers.get('Location') || '').endsWith('/admin/'),
+    `التحويل لا ينتهي بـ/admin/: ${bare.headers.get('Location')}`);
+
+  // وكلّ أصلٍ تطلبه اللوحة يجب أن يُحلَّ من عنوانها فيُخدَم فعلًا.
+  //
+  // هذا هو الفحص الذي كان ناقصًا: اللوحة كانت تُخدَم بحالة 200 بينما
+  // `app.js` عندها 404، فتظهر الصفحة كاملةً ولا يعمل فيها شيء.
+  const panelHtml = await panel.text();
+  const refs = [...panelHtml.matchAll(/(?:src|href)="(\.\/[^"]+)"/g)].map((m) => m[1]);
+  assert.ok(refs.length >= 2, `لم تُقرأ مراجع اللوحة النسبية: ${refs.length}`);
+  for (const ref of refs) {
+    const resolved = new URL(ref, `${ORIGIN}/admin/`).pathname;
+    const asset = await withHost(resolved);
+    assert.equal(asset.status, 200,
+      `اللوحة تطلب ${ref} فيصير ${resolved} وردُّه ${asset.status} — تُحمَّل الصفحة بلا شيفرتها`);
+  }
 
   // نطاق محجوز لا يُعامل كمطعم. لا يعني هذا أنه يردّ خطأً — يسلك طريق
   // اللوحة كأي مضيف غير مستأجر — بل أنه لا يعرض موقع مطعم اسمه `www`.

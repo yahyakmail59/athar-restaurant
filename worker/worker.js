@@ -82,6 +82,22 @@ function tenantFromHost(request, env) {
  */
 function servePanel(request, env, path) {
   if (!env.ASSETS) return new Response('Not found', { status: 404 });
+
+  // `/admin` بلا شرطة أخيرة تُحوَّل إلى `/admin/`.
+  //
+  // الصفحة تطلب أصولها بمسارات نسبية (`./app.js`)، والمتصفح يحلّها من
+  // مجلّد العنوان: من `/admin/` تصير `/admin/app.js` وتُخدَم، ومن `/admin`
+  // تصير `/app.js` ولا وجود لها على نطاق المطعم — فتُحمَّل الصفحة بلا
+  // شيفرتها، ويصير زرّ الدخول زرًّا ميتًا: يكتب المستخدم بياناته الصحيحة
+  // ولا يحدث شيء، ولا رسالة خطأ لأن لا شيء يعمل ليُخطئ.
+  //
+  // ولا يكفي إصلاح الرابط في اللوحة: روابط بلا شرطة نُسخت وأُرسلت سلفًا.
+  const url = new URL(request.url);
+  if (path === '/admin') {
+    url.pathname = '/admin/';
+    return Response.redirect(url.toString(), 301);
+  }
+
   const rewritten = new URL(request.url);
   const rest = path.slice('/admin'.length);
   // `/` لا `/index.html`: طبقة الأصول تُقنّن `/index.html` فتردّ 307 إلى `/`،
