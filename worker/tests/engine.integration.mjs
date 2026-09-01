@@ -1187,16 +1187,37 @@ await check('the owner changes their own password and keeps working', async () =
 
 await check('a chosen brand kit reaches the public page, not the classic default', async () => {
   const response = await adapter('POST', '/internal/v1/tenants', {
-    tenant_id: 'ten_luxury', slug: 'luxury-resto', display_name: 'مطعم فاخر',
+    tenant_id: 'ten_luxury', slug: 'adana-navy-resto', display_name: 'مطعم فاخر',
+    environment: 'production', plan_code: 'full', admin_username: 'owner',
+    brand_kit_code: 'restaurant:adana_navy',
+  });
+  const created = await read(response);
+  assert.equal(created.status, 201, created.text);
+  const page = await (await call(`/r/adana-navy-resto/`)).text();
+  assert.ok(page.includes('--brand-red:#D4AF37'), 'the Adana kit colour did not reach settings');
+  assert.ok(page.includes('--page-bg:#0B1D2D'), 'the Adana navy ground did not reach settings');
+  assert.ok(page.includes('themes/luxury.css'), 'the luxury theme layer was not linked');
+  assert.ok(!page.includes('--brand-red:#E30613'), 'the classic default leaked over a chosen kit');
+});
+
+/*
+ * الاسم المتقاعد يصل خلفه، لا الافتراضيّة.
+ *
+ * `luxury_navy` صار «الفاخر — نبيذيّ» بعد أن انتقل الكحليّ الذهبيّ إلى
+ * أضنة باسمها. ومستأجرٌ قديم ما زال يحمل الاسم القديم في صفّه — فلو سقط
+ * إلى الافتراضية لأُنشئ أحمرَ بلا رسالة، وهو ما يُقاس هنا لا يُفترض.
+ */
+await check('a retired kit name provisions its heir, not the default', async () => {
+  const response = await adapter('POST', '/internal/v1/tenants', {
+    tenant_id: 'ten_retired_kit', slug: 'retired-kit-resto', display_name: 'مطعم قديم',
     environment: 'production', plan_code: 'full', admin_username: 'owner',
     brand_kit_code: 'restaurant:luxury_navy',
   });
   const created = await read(response);
   assert.equal(created.status, 201, created.text);
-  const page = await (await call(`/r/luxury-resto/`)).text();
-  assert.ok(page.includes('--brand-red:#0B1D2D'), 'the luxury kit colour did not reach settings');
-  assert.ok(page.includes('themes/luxury.css'), 'the luxury theme layer was not linked');
-  assert.ok(!page.includes('--brand-red:#E30613'), 'the classic default leaked over a chosen kit');
+  const page = await (await call(`/r/retired-kit-resto/`)).text();
+  assert.ok(page.includes('--brand-red:#8E1F38'), 'the retired name did not reach the burgundy heir');
+  assert.ok(!page.includes('--brand-red:#E30613'), 'the retired name fell silently to the default');
 });
 
 await check('an unknown brand kit code falls back safely instead of failing provisioning', async () => {

@@ -131,6 +131,60 @@ check(
   retiredWrite ? `يكتب '${retiredWrite[1]}' نصًّا` : 'يستعمل `DEFAULT_BRAND_KIT`',
 );
 
+/* ---------- 1د) لا هويّتان متشابهتان ---------- */
+
+/*
+ * لماذا: كانت في القائمة «شبيه أضنة و B12» — خيارٌ واحد لمطعمين، لأن
+ * ملفَّي CSS عندهما متطابقان في ثمانية عشر رمزًا. والقياس الأعمق قال غير
+ * ذلك: شعار B12 أحمرُ وأبيضُ على أسود بلا ذهب، ودليلُ علامة أضنة يكتب
+ * صراحةً كحليّ `#0B1D2D` وذهبيّ `#D4AF37`. فالتطابق كان في الشيفرة
+ * المنسوخة لا في العلامتين — أضنة بُنيت على باك-إند B12.
+ *
+ * وهذا الفحص يمنع عودة التوأمين: خياران متشابهان في قائمةٍ يبيعها مشغّل
+ * لا يُضيفان اختيارًا، بل يجعلانه يظنّ أنه اختار ثم يجد ما لم يختر.
+ *
+ * المسافة إقليدية في RGB — لا CIEDE2000. الغاية «هل يراهما المشغّل
+ * مختلفتين في قائمة» لا دقّةُ علم الألوان، والعتبة مُعايَرة على أقرب
+ * زوجٍ باقٍ فعلًا.
+ */
+
+const HEX = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i;
+const channels = (hex) => {
+  const m = HEX.exec(String(hex || ''));
+  return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : null;
+};
+const distance = (a, b) => {
+  const x = channels(a);
+  const y = channels(b);
+  if (!x || !y) return 0;
+  return Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]);
+};
+
+const MIN_DISTANCE = 60;
+const twins = [];
+let closest = { pair: '', value: Infinity };
+
+for (let i = 0; i < BRAND_KIT_ORDER.length; i += 1) {
+  for (let j = i + 1; j < BRAND_KIT_ORDER.length; j += 1) {
+    const a = BRAND_KITS[BRAND_KIT_ORDER[i]];
+    const b = BRAND_KITS[BRAND_KIT_ORDER[j]];
+    // أقربُ ما بينهما: هويتان تفترقان في الأرضية وحدها ما زالتا مختلفتين.
+    const apart = Math.max(
+      distance(a.primary_color, b.primary_color),
+      distance(a.background_color, b.background_color),
+    );
+    const pair = `${BRAND_KIT_ORDER[i]} ↔ ${BRAND_KIT_ORDER[j]}`;
+    if (apart < closest.value) closest = { pair, value: apart };
+    if (apart < MIN_DISTANCE) twins.push(`${pair} (${apart.toFixed(0)})`);
+  }
+}
+
+check(
+  'لا هويّتان توأمان في القائمة',
+  twins.length === 0,
+  twins.join('، ') || `أقربُ زوجٍ ${closest.pair} بمسافة ${closest.value.toFixed(0)} · العتبة ${MIN_DISTANCE}`,
+);
+
 /* ---------- 2) الوضع يطابق الأرقام ---------- */
 
 for (const code of BRAND_KIT_ORDER) {
@@ -187,10 +241,26 @@ check(
 
 /* ---------- 5) الأسماء القديمة لا تسقط بصمت ---------- */
 
+/*
+ * ثلاثة أسماء متقاعدة، ولكلٍّ خلفٌ مقصود:
+ *   adana_classic ─┬─▶ b12_red        (القيمُ التي كانت تحملها قيمُ B12)
+ *   adana_b12     ─┘
+ *   luxury_navy   ───▶ luxury_burgundy (والكحليّ الذهبيّ صار أضنة باسمها)
+ */
+const RETIRED = {
+  adana_classic: 'b12_red',
+  adana_b12: 'b12_red',
+  luxury_navy: 'luxury_burgundy',
+};
+
+const misrouted = Object.entries(RETIRED)
+  .filter(([old_, heir]) => resolveBrandKit(old_) !== BRAND_KITS[heir])
+  .map(([old_, heir]) => `${old_} كان يجب أن يُحلّ إلى ${heir}`);
+
 check(
-  'الاسم القديم يُحلّ إلى خلفه لا إلى الافتراضيّة',
-  resolveBrandKit('adana_classic') === BRAND_KITS.adana_b12,
-  'مطعمٌ أُنشئ بالاسم القديم يبقى يحمله في صفّ المستأجر',
+  'كل اسم متقاعد يُحلّ إلى خلفه لا إلى الافتراضيّة',
+  misrouted.length === 0,
+  misrouted.join('، ') || `${Object.keys(RETIRED).length} أسماء موجَّهة · مطعمٌ أُنشئ باسمٍ قديم يبقى يحمله في صفّه`,
 );
 
 check(

@@ -26,23 +26,50 @@
  */
 
 export const BRAND_KITS = {
-  adana_b12: {
-    label: 'شبيه أضنة و B12 — أحمر وذهبي',
-    description: 'الهوية الأصلية: أحمر ناريّ وذهبيّ على أسود، بخط Bebas Neue الحادّ '
-      + 'وCairo للنصّ. قِيست من المشروعين فتطابقا في ثمانية عشر رمزًا.',
+  b12_red: {
+    label: 'شبيه B12 — أحمر وفضّي على أسود',
+    description: 'أحمر ناريّ وأبيض على أسود، بخط Bebas Neue الحادّ وCairo للنصّ. '
+      + 'قِيست من شعار B12 نفسه: أحمرٌ وأبيضُ على أسود، ولا ذهبَ فيه.',
     mode: 'dark',
     primary_color: '#E30613',
-    gold_color: '#D4AF37',
+    // الفضّيّ لا الذهبيّ: شعار B12 خطٌّ أبيض تحت الاسم الأحمر، ولا أثر
+    // للذهب فيه. وكان ذهبيًّا في الشيفرة لأن الملف نُسخ عن أضنة لا لأن
+    // العلامة كذلك.
+    gold_color: '#E8E8E8',
     background_color: '#050505',
     surface_color: '#111111',
     text_color: '#FFFFFF',
-    muted_color: '#B8B8B8',
+    // #A6A6A6 قيمة B12 نفسها في `style.css` عنده — وأضنة تكتب #B8B8B8.
+    muted_color: '#A6A6A6',
     line_color: 'rgba(255,255,255,.14)',
     whatsapp_color: '#25D366',
     theme_layer: '',
     arabic_font: 'cairo',
     arabic_display_font: 'cairo',
     display_font: 'bebas-neue',
+    latin_font: 'montserrat',
+  },
+
+  adana_navy: {
+    label: 'شبيه أضنة — ذهبيّ على كحليّ',
+    description: 'ذهبيّ على كحليّ عميق مع لوحٍ ورقيّ دافئ، بخط El Messiri للعناوين '
+      + 'العربية. هويةُ أضنة الحقيقية كما في دليل علامتها، لا ما ورثته من شيفرة B12.',
+    mode: 'dark',
+    // الذهبيّ هو زرّ الفعل هنا لا الأحمر: الشعار ذهبٌ على كحليّ، ولا أحمر
+    // في العلامة أصلًا. و`inkFor` تعطيه حبرًا داكنًا تلقائيًّا.
+    primary_color: '#D4AF37',
+    // الورقُ الكرافتيّ الدافئ من دليل العلامة — لهجةٌ ثانية إلى جانب الذهب.
+    gold_color: '#E3CDA4',
+    background_color: '#0B1D2D',
+    surface_color: '#12293D',
+    text_color: '#F3EEE2',
+    muted_color: '#A7B7C4',
+    line_color: 'rgba(212,175,55,.22)',
+    whatsapp_color: '#25D366',
+    theme_layer: 'luxury',
+    arabic_font: 'cairo',
+    arabic_display_font: 'el-messiri',
+    display_font: 'playfair-display',
     latin_font: 'montserrat',
   },
 
@@ -87,18 +114,18 @@ export const BRAND_KITS = {
     latin_font: 'work-sans',
   },
 
-  luxury_navy: {
-    label: 'الفاخر — كحلي وذهبي',
-    description: 'طبقة بصرية إضافية فوق التصميم الأساسي: حدود ذهبية دقيقة '
-      + 'وتدرّجات هادئة، بخط Playfair Display للعناوين.',
+  luxury_burgundy: {
+    label: 'الفاخر — نبيذيّ وشمبانيا',
+    description: 'نبيذيّ عميق وشمبانيا على فحميّ محمرّ، بخط Playfair Display. '
+      + 'للمطاعم الراقية والعشاء — لا أحمرَ ناريًّا ولا ذهبَ صريح.',
     mode: 'dark',
-    primary_color: '#0B1D2D',
-    gold_color: '#D4AF37',
-    background_color: '#050608',
-    surface_color: '#0F1620',
-    text_color: '#F2F5F8',
-    muted_color: '#A9B4C0',
-    line_color: 'rgba(242,245,248,.14)',
+    primary_color: '#8E1F38',
+    gold_color: '#E5D3A3',
+    background_color: '#140A0E',
+    surface_color: '#22111A',
+    text_color: '#F6EFE9',
+    muted_color: '#C0A8AF',
+    line_color: 'rgba(229,211,163,.20)',
     whatsapp_color: '#25D366',
     theme_layer: 'luxury',
     arabic_font: 'cairo',
@@ -150,10 +177,11 @@ export const BRAND_KITS = {
 
 /** ترتيب العرض في قائمة اللوحة — الأشهر أولًا. */
 export const BRAND_KIT_ORDER = [
-  'adana_b12', 'fries_station', 'olive_copper', 'luxury_navy', 'vibrant_emerald', 'warm_amber',
+  'b12_red', 'adana_navy', 'fries_station', 'olive_copper',
+  'luxury_burgundy', 'vibrant_emerald', 'warm_amber',
 ];
 
-export const DEFAULT_BRAND_KIT = 'adana_b12';
+export const DEFAULT_BRAND_KIT = 'b12_red';
 
 /**
  * أسماء قديمة لهويات أُعيدت تسميتها.
@@ -163,7 +191,15 @@ export const DEFAULT_BRAND_KIT = 'adana_b12';
  * قراءة لاحقة — والصمت هنا يعني هوية تتبدّل بلا أن يطلب أحد.
  */
 const ALIASES = {
-  adana_classic: 'adana_b12',
+  // `adana_classic` ثم `adana_b12`: اسمان لهوية واحدة كانت تجمع المطعمين.
+  // وُجّها إلى B12 لا إلى أضنة: القيم التي كانت تحملها قيمُ B12 — أحمرُ على
+  // أسود — لا الكحليّ الذهبيّ. والمطاعم التي أُنشئت بها تحمل تلك القيم
+  // مكتوبةً في `settings`، فلا يتبدّل شكلُ أحد بهذا التوجيه.
+  adana_classic: 'b12_red',
+  adana_b12: 'b12_red',
+  // و`luxury_navy` كان كحليًّا ذهبيًّا — وهو الآن هويةُ أضنة نفسها بالاسم
+  // الصحيح. فالفاخر انتقل إلى النبيذيّ، والاسم القديم يتبعه.
+  luxury_navy: 'luxury_burgundy',
 };
 
 /** يعيد قيم هوية معروفة، أو الافتراضية إن كان الرمز غير معروف. */
